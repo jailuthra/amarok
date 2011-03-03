@@ -1,0 +1,53 @@
+/****************************************************************************************
+ * Copyright (c) 2011 Stefan Derkits <stefan@derkits.at>                                *
+ * Copyright (c) 2011 Christian Wagner <christian.wagner86@gmx.at>                      *
+ * Copyright (c) 2011 Felix Winter <ixos01@gmail.com>                                   *
+ *                                                                                      *
+ * This program is free software; you can redistribute it and/or modify it under        *
+ * the terms of the GNU General Public License as published by the Free Software        *
+ * Foundation; either version 2 of the License, or (at your option) any later           *
+ * version.                                                                             *
+ *                                                                                      *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY      *
+ * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A      *
+ * PARTICULAR PURPOSE. See the GNU General Public License for more details.             *
+ *                                                                                      *
+ * You should have received a copy of the GNU General Public License along with         *
+ * this program.  If not, see <http://www.gnu.org/licenses/>.                           *
+ ****************************************************************************************/
+
+
+
+#ifndef GPODDERPODCASTMETA_H
+#define GPODDERPODCASTMETA_H
+
+#include "core/podcasts/PodcastMeta.h"
+#include "core/playlists/PlaylistProvider.h"
+
+namespace Podcasts {
+
+class GpodderPodcastChannel;
+class GpodderProvider;
+
+typedef KSharedPtr<GpodderPodcastChannel> GpodderPodcastChannelPtr;
+typedef QList<GpodderPodcastChannelPtr> GpodderPodcastChannelList;
+
+class GpodderPodcastChannel : public PodcastChannel {
+public:
+    GpodderPodcastChannel( GpodderProvider* provider );
+    /** Copy a PodcastChannel
+    */
+    GpodderPodcastChannel( GpodderProvider *provider, PodcastChannelPtr channel );
+
+    virtual Playlists::PlaylistProvider *provider() const;
+    
+private:
+    GpodderProvider* m_provider;
+};
+
+}
+
+Q_DECLARE_METATYPE( Podcasts::GpodderPodcastChannelPtr )
+Q_DECLARE_METATYPE( Podcasts::GpodderPodcastChannelList )
+
+#endif

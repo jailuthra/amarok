@@ -773,6 +773,15 @@ if(KDE4_BUILD_TESTS)
     )
 endif()
 
+if( LIBMYGPO_QT_FOUND )
+    set( EXTRA_LIBS ${LIBMYGPO_QT_LIBRARY} )
+    set(libpodcasts_SRCS
+        core-impl/podcasts/gpodder/GpodderProvider.cpp
+        core-impl/podcasts/gpodder/GpodderPodcastMeta.cpp
+    )
+    include_directories(     ${LIBMYGPO_QT_INCLUDE_DIR}  ${LIBMYGPO_QT_INCLUDE_DIR}/../ )
+endif( LIBMYGPO_QT_FOUND )
+
 if( LIBLASTFM_FOUND )
     set(amaroklib_LIB_SRCS
         ${amaroklib_LIB_SRCS}

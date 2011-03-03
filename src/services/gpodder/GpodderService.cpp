@@ -17,15 +17,16 @@
  ****************************************************************************************/
 
 #define DEBUG_PREFIX "GpodderService"
-#include "core/support/Debug.h"
 
 #include "GpodderService.h"
 
+#include "GpodderServiceConfig.h"
 #include "GpodderServiceView.h"
 #include "GpodderServiceModel.h"
 #include "GpodderPodcastTreeItem.h"
 #include "GpodderSortFilterProxyModel.h"
 
+#include "core/support/Debug.h"
 #include "core/podcasts/PodcastProvider.h"
 #include "playlistmanager/PlaylistManager.h"
 #include "widgets/SearchWidget.h"
@@ -73,7 +74,7 @@ KPluginInfo GpodderServiceFactory::info()
 
 KConfigGroup GpodderServiceFactory::config()
 {
-    return Amarok::config( "Service_gpodder" );
+    return Amarok::config( GpodderServiceConfig::configSectionName() );
 }
 
 void GpodderServiceFactory::slotCreateGpodderService()
@@ -107,9 +108,10 @@ ServiceBase* GpodderServiceFactory::createGpodderService()
 }
 
 GpodderService::GpodderService( GpodderServiceFactory* parent, const QString& name )
-    : ServiceBase( name, parent, false ), m_inited( false )
+    : ServiceBase( name, parent, false ), m_inited( false ), m_podcastProvider( 0 ), m_proxyModel( 0 ), m_subscribeButton( 0 ), m_selectionModel( 0 )
 {
     DEBUG_BLOCK
+    
     setShortDescription( i18n( "gpodder.net: Podcast Directory Service" ) );
     setIcon( KIcon( "view-services-gpodder-amarok" ) );
     setLongDescription( i18n( "gpodder.net is an online Podcast Directory & Synchonisation Service." ) );
@@ -122,12 +124,17 @@ GpodderService::~GpodderService()
 {
     DEBUG_BLOCK
 
+    delete m_podcastProvider;
 }
 
 //This Method should only contain the most necessary things for initilazing the Service
 void GpodderService::init()
 {
-
+    GpodderServiceConfig config;
+    
+    if ( config.enableProvider() )
+        enableGpodderProvider ( config.username() , config.password() );
+    
     m_serviceready = true;
 
     m_inited = true;
@@ -224,4 +231,15 @@ void GpodderService::subscribe()
         KUrl kUrl( podcastTreeItem->podcast()->url() );
         podcastProvider->addPodcast( kUrl );
     }
+}
+
+void GpodderService::enableGpodderProvider(const QString& username, const QString& password)
+{
+    DEBUG_BLOCK
+
+    debug() << "enabling GpodderProvider";
+
+    delete m_podcastProvider;
+    m_podcastProvider = new Podcasts::GpodderProvider( username, password );
+    //Create new Provider
 }
