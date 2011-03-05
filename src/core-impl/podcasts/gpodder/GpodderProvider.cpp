@@ -51,6 +51,7 @@ GpodderProvider::GpodderProvider( const QString &username, const QString &passwo
 GpodderProvider::~GpodderProvider()
 {
     DEBUG_BLOCK
+    
     delete m_timer;
     //send remaining changes
     if (!m_removeList.isEmpty() || !m_addList.isEmpty())
@@ -67,6 +68,7 @@ GpodderProvider::~GpodderProvider()
 void GpodderProvider::timerUpdate()
 {
     DEBUG_BLOCK
+    
     debug() << "add: " << m_addList.size();
     debug() << "remove: " << m_removeList.size();
     if (!m_removeList.isEmpty() || !m_addList.isEmpty())
@@ -121,6 +123,7 @@ PodcastEpisodePtr GpodderProvider::episodeForGuid(const QString& guid)
 void GpodderProvider::addPodcast(const KUrl& url)
 {
     DEBUG_BLOCK
+    
     m_addList << QUrl(url.url());
     PodcastChannelPtr p = PodcastChannelPtr(new PodcastChannel());
     p->setUrl(url);
@@ -147,7 +150,11 @@ Playlists::PlaylistPtr GpodderProvider::addPlaylist(Playlists::PlaylistPtr playl
 PodcastChannelPtr GpodderProvider::addChannel(PodcastChannelPtr channel)
 {
     DEBUG_BLOCK
+    
     GpodderPodcastChannelPtr gpodderChannel(new GpodderPodcastChannel(this,channel));
+    //readChannel(gpodderChannel);
+    //debug() << gpodderChannel->episodes().size();
+    //m_addList << QUrl(channel->url().url());
     return PodcastChannelPtr::dynamicCast(gpodderChannel);
 }
 
