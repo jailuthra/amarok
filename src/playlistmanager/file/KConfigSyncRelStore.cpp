@@ -17,8 +17,11 @@
 
 #include <src/core/support/Amarok.h>
 #include <src/core/support/Debug.h>
+#include <PlaylistManager.h>
 
 #include <KConfigGroup>
+
+#include <QString>
 
 using namespace Playlists;
 
@@ -33,6 +36,8 @@ KConfigSyncRelStore::KConfigSyncRelStore()
         m_syncMasterMap.insert( masterUrl, SyncedPlaylistPtr() );
         foreach( QString value, syncedPlaylistsConfig().readEntry( key ).split( ',' ) )
         {
+            The::playlistManager()->prepareToSync();
+
             m_syncSlaveMap.insert( KUrl( value ), masterUrl );
             debug() << "\tslave" << value;
         }
@@ -45,7 +50,7 @@ KConfigSyncRelStore::~KConfigSyncRelStore()
 }
 
 bool
-KConfigSyncRelStore::shouldBeSynced( PlaylistPtr playlist )
+KConfigSyncRelStore::shouldBeSynced( const PlaylistPtr playlist ) const
 {
     DEBUG_BLOCK
     debug() << playlist->uidUrl().url();
@@ -54,7 +59,7 @@ KConfigSyncRelStore::shouldBeSynced( PlaylistPtr playlist )
 }
 
 SyncedPlaylistPtr
-KConfigSyncRelStore::asSyncedPlaylist( PlaylistPtr playlist )
+KConfigSyncRelStore::asSyncedPlaylist( const PlaylistPtr playlist )
 {
     DEBUG_BLOCK
     debug() << playlist->uidUrl().url();
@@ -82,4 +87,32 @@ KConfigSyncRelStore::asSyncedPlaylist( PlaylistPtr playlist )
 inline KConfigGroup
 KConfigSyncRelStore::syncedPlaylistsConfig() const {
     return Amarok::config( "Synchronized Playlists" );
+}
+
+void
+KConfigSyncRelStore::addSync( const PlaylistPtr master, const PlaylistPtr slave)
+{
+
+    KUrl masterUrl( master->uidUrl() );
+
+    if ( m_syncMasterMap.contains( masterUrl ) )
+        m_syncSlaveMap.insert( slave->uidUrl(), masterUrl );
+    else
+    {
+
+        m_syncMasterMap.insert( masterUrl, SyncedPlaylistPtr() );
+        m_syncSlaveMap.insert( slave->uidUrl(), masterUrl );
+
+    }
+
+    QList<QString> slaveUrlStringList;
+    foreach( const KUrl& slaveUrl, m_syncSlaveMap.keys() )
+    {
+        if( m_syncSlaveMap.value( slaveUrl ) == masterUrl )
+            slaveUrlStringList.append( ( m_syncSlaveMap.value( slaveUrl ) ).url() );
+
+    }
+
+    syncedPlaylistsConfig().writeEntry( masterUrl.url(), slaveUrlStringList );
+
 }

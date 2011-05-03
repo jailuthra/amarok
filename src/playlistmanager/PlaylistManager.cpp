@@ -28,6 +28,7 @@
 #include "file/KConfigSyncRelStore.h"
 #include "core-impl/podcasts/sql/SqlPodcastProvider.h"
 #include "playlistmanager/sql/SqlUserPlaylistProvider.h"
+#include "playlistmanager/SyncedPlaylist.h"
 #include "core/support/Debug.h"
 #include "core/support/Components.h"
 #include "core/interfaces/Logger.h"
@@ -441,6 +442,15 @@ PlaylistManager::completePodcastDownloads()
 
         podcastProvider->completePodcastDownloads();
     }
+}
+
+void
+PlaylistManager::prepareToSync(const Playlists::PlaylistPtr master, const Playlists::PlaylistPtr slave)
+{
+
+    m_syncRelStore->addSync( master, slave );
+
+    addPlaylist(syncPlaylist);
 }
 
 #include "PlaylistManager.moc"

@@ -27,8 +27,10 @@ public:
 
     ~KConfigSyncRelStore();
 
-    virtual bool shouldBeSynced( Playlists::PlaylistPtr playlist );
-    virtual SyncedPlaylistPtr asSyncedPlaylist( Playlists::PlaylistPtr playlist );
+
+    virtual void addSync( const Playlists::PlaylistPtr master, const Playlists::PlaylistPtr slave );
+    virtual bool shouldBeSynced( const Playlists::PlaylistPtr playlist ) const;
+    virtual SyncedPlaylistPtr asSyncedPlaylist( const Playlists::PlaylistPtr playlist );
 private:
     KConfigGroup syncedPlaylistsConfig() const;
 

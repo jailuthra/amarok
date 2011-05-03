@@ -27,8 +27,9 @@ public:
     SyncRelationStorage();
     virtual ~SyncRelationStorage() {}
 
-    virtual bool shouldBeSynced( Playlists::PlaylistPtr playlist ) = 0;
-    virtual SyncedPlaylistPtr asSyncedPlaylist( Playlists::PlaylistPtr playlist ) = 0;
+    virtual void addSync( const Playlists::PlaylistPtr master, const Playlists::PlaylistPtr slave ) = 0;
+    virtual bool shouldBeSynced( const Playlists::PlaylistPtr playlist ) const = 0;
+    virtual SyncedPlaylistPtr asSyncedPlaylist( const Playlists::PlaylistPtr playlist ) = 0;
 };
 
 #endif // SYNCRELATIONSTORAGE_H
