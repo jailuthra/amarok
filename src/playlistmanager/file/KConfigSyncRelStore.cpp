@@ -17,7 +17,6 @@
 
 #include <src/core/support/Amarok.h>
 #include <src/core/support/Debug.h>
-#include <PlaylistManager.h>
 
 #include <KConfigGroup>
 
@@ -36,10 +35,10 @@ KConfigSyncRelStore::KConfigSyncRelStore()
         m_syncMasterMap.insert( masterUrl, SyncedPlaylistPtr() );
         foreach( QString value, syncedPlaylistsConfig().readEntry( key ).split( ',' ) )
         {
-            The::playlistManager()->prepareToSync();
 
             m_syncSlaveMap.insert( KUrl( value ), masterUrl );
             debug() << "\tslave" << value;
+
         }
     }
 

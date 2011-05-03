@@ -445,12 +445,13 @@ PlaylistManager::completePodcastDownloads()
 }
 
 void
-PlaylistManager::prepareToSync(const Playlists::PlaylistPtr master, const Playlists::PlaylistPtr slave)
+PlaylistManager::setupSync( const Playlists::PlaylistPtr master, const Playlists::PlaylistPtr slave )
 {
 
     m_syncRelStore->addSync( master, slave );
 
-    addPlaylist(syncPlaylist);
+    addPlaylist( master, master->provider()->category() );
+
 }
 
 #include "PlaylistManager.moc"

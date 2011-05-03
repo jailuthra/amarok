@@ -96,7 +96,7 @@ class AMAROK_EXPORT PlaylistManager : public QObject
          * @arg playlist of the master playlist
          * @arg playlist of the slave playlist
          */
-        void prepareToSync( const Playlists::PlaylistPtr master, const Playlists::PlaylistPtr slave );
+        void setupSync( const Playlists::PlaylistPtr master, const Playlists::PlaylistPtr slave );
 
         /**
          * Remove a PlaylistProvider.
