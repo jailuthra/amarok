@@ -200,61 +200,66 @@ void
 SyncedPlaylist::doSync() const
 {
     DEBUG_BLOCK
-    //HACK: only compare the first 2 for now
-    QListIterator<Playlists::PlaylistPtr> i( m_playlists );
-    Playlists::PlaylistPtr master = i.next();
-    if( !i.hasNext() )
-        return;
 
-    Playlists::PlaylistPtr slave = i.next();
-    QListIterator<TrackPtr> m( master->tracks() );
-    //debug: print list
-    int position = 0;
-    debug() << "master playlist: " << master->name() << " " << master->uidUrl().url();
-    while( m.hasNext() )
-        debug() << QString( "%1 : %2" ).arg( position++ ).arg( m.next()->name() );
-    m.toFront();
+    QList<Playlists::PlaylistPtr>::const_iterator i = m_playlists.begin();
+    Playlists::PlaylistPtr master = *i;
+    ++i; //From now on its only slaves on the iterator
 
-    TrackList slaveTracks = slave->tracks();
-    //debug: print list
-    position = 0;
-    debug() << "slave playlist: " << slave->name() << " " << slave->uidUrl().url();
-    foreach( const TrackPtr track, slaveTracks )
-        debug() << QString( "%1 : %2" ).arg( position++ ).arg( track->name() );
-
-    //Add first. Tracks in slave that are not in master will eventually shift to the end.
-    position = 0;
-    while( m.hasNext() )
+    while( i != m_playlists.end() )
     {
-        TrackPtr track = m.next();
-        if( position >= slaveTracks.size()
-            || track->uidUrl() != slaveTracks.at( position )->uidUrl() )
+        Playlists::PlaylistPtr slave = *i;
+
+        QListIterator<TrackPtr> m( master->tracks() );
+        //debug: print list
+        int position = 0;
+        debug() << "master playlist: " << master->name() << " " << master->uidUrl().url();
+        while( m.hasNext() )
+            debug() << QString( "%1 : %2" ).arg( position++ ).arg( m.next()->name() );
+        m.toFront();
+
+        TrackList slaveTracks = slave->tracks();
+        //debug: print list
+        position = 0;
+        debug() << "slave playlist: " << slave->name() << " " << slave->uidUrl().url();
+        foreach( const TrackPtr track, slaveTracks )
+            debug() << QString( "%1 : %2" ).arg( position++ ).arg( track->name() );
+
+        //Add first. Tracks in slave that are not in master will eventually shift to the end.
+        position = 0;
+        while( m.hasNext() )
         {
-            debug() << "insert " << track->name() << " at " << position;
-            slave->addTrack( track, position );
-            //update local copy of the tracks
-            slaveTracks = slave->tracks();
+            TrackPtr track = m.next();
+            if( position >= slaveTracks.size()
+                    || track->uidUrl() != slaveTracks.at( position )->uidUrl() )
+            {
+                debug() << "insert " << track->name() << " at " << position;
+                slave->addTrack( track, position );
+                //update local copy of the tracks
+                slaveTracks = slave->tracks();
+            }
+            position++;
         }
-        position++;
+
+        //debug: print list
+        position = 0;
+        debug() << "slave playlist after insertions:";
+        foreach( const TrackPtr track, slaveTracks )
+            debug() << QString( "%1 : %2" ).arg( position++ ).arg( track->name() );
+
+        //Then remove everything after the position of the last track in master.
+        //This removes any tracks that are not in master.
+        position = master->tracks().size();
+        while( position < slave->tracks().size() )
+            slave->removeTrack( position );
+
+        //debug: print list
+        position = 0;
+        debug() << "slave playlist after removal:";
+        foreach( const TrackPtr track, slave->tracks() )
+            debug() << QString( "%1 : %2" ).arg( position++ ).arg( track->name() );
+
+        ++i; //Iterate the iterator
     }
-
-    //debug: print list
-    position = 0;
-    debug() << "slave playlist after insertions:";
-    foreach( const TrackPtr track, slaveTracks )
-        debug() << QString( "%1 : %2" ).arg( position++ ).arg( track->name() );
-
-    //Then remove everything after the position of the last track in master.
-    //This removes any tracks that are not in master.
-    position = master->tracks().size();
-    while( position < slave->tracks().size() )
-        slave->removeTrack( position );
-
-    //debug: print list
-    position = 0;
-    debug() << "slave playlist after removal:";
-    foreach( const TrackPtr track, slave->tracks() )
-        debug() << QString( "%1 : %2" ).arg( position++ ).arg( track->name() );
 }
 
 void
@@ -269,3 +274,4 @@ SyncedPlaylist::removePlaylistsFrom( Playlists::PlaylistProvider *provider )
         }
     }
 }
+

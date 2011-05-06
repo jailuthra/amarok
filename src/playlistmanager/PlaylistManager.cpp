@@ -144,17 +144,25 @@ PlaylistManager::addPlaylist( Playlists::PlaylistPtr playlist, int category )
 {
     if( shouldBeSynced( playlist ) )
     {
+        DEBUG_BLOCK
+        debug() << playlist->uidUrl();
         SyncedPlaylistPtr syncedPlaylist = m_syncRelStore->asSyncedPlaylist( playlist );
         Playlists::PlaylistPtr syncedPlaylistPtr =
                 Playlists::PlaylistPtr::dynamicCast( syncedPlaylist );
-        m_syncedPlaylistMap.insert( syncedPlaylist, playlist );
+
+        m_playlistMap.insert( category, playlist );
+
         if( !m_playlistMap.values( category ).contains(
                 Playlists::PlaylistPtr::dynamicCast( syncedPlaylistPtr ) ) )
         {
-            m_playlistMap.insert( category, syncedPlaylistPtr );
+            m_syncedPlaylistMap.insert( syncedPlaylist, playlist );
             //reemit so models know about new playlist in their category
             emit playlistAdded( syncedPlaylistPtr, category );
         }
+
+        if (syncedPlaylist->syncNeeded())
+            syncedPlaylist->doSync();
+
     }
     else
     {

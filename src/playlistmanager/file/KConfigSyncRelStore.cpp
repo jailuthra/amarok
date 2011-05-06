@@ -66,19 +66,20 @@ KConfigSyncRelStore::asSyncedPlaylist( const PlaylistPtr playlist )
     if( m_syncMasterMap.keys().contains( playlist->uidUrl() ) )
     {
         syncedPlaylist = m_syncMasterMap.value( playlist->uidUrl() );
-        if( !syncedPlaylist )
+        if( syncedPlaylist )
+            syncedPlaylist->addPlaylist( playlist );
+        else
         {
             syncedPlaylist = SyncedPlaylistPtr( new SyncedPlaylist( playlist ) );;
             m_syncMasterMap.insert( playlist->uidUrl(), syncedPlaylist );
-            return syncedPlaylist;
         }
     }
     else if( m_syncSlaveMap.keys().contains( playlist->uidUrl() ) )
     {
-        syncedPlaylist = m_syncMasterMap.value( m_syncSlaveMap.value( playlist->uidUrl() ) );
-        if( syncedPlaylist )
+         syncedPlaylist = m_syncMasterMap.value( m_syncSlaveMap.value( playlist->uidUrl() ) );
+         if( syncedPlaylist )
             syncedPlaylist->addPlaylist( playlist );
-    }
+     }  
 
     return syncedPlaylist;
 }
