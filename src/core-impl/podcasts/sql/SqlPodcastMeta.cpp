@@ -800,3 +800,12 @@ SqlPodcastChannel::loadEpisodes()
     m_episodesLoaded = true;
 }
 
+Meta::TrackList Podcasts::SqlPodcastChannel::tracks()
+{
+    //If you do not load before, m_episodes
+    //can be empty before usage.
+    triggerTrackLoad();
+
+    return Podcasts::SqlPodcastEpisode::toTrackList( m_episodes );
+}
+

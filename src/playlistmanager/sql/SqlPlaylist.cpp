@@ -231,11 +231,10 @@ SqlPlaylist::trackCount() const
 Meta::TrackList
 SqlPlaylist::tracks()
 {
-    if( !m_tracksLoaded )
-        loadTracks();
-
-    //If you not load before, m_tracks
+    //If you do not load before, m_tracks
     //can be empty before usage.
+    triggerTrackLoad();
+
     return m_tracks;
 }
 

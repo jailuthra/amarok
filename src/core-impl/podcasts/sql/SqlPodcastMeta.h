@@ -100,8 +100,7 @@ class SqlPodcastChannel : public Podcasts::PodcastChannel
         ~SqlPodcastChannel();
         // Playlists::Playlist methods
         virtual int trackCount() const;
-        virtual Meta::TrackList tracks() {
-            return Podcasts::SqlPodcastEpisode::toTrackList( m_episodes ); }
+        virtual Meta::TrackList tracks() ;
         virtual void triggerTrackLoad();
         virtual Playlists::PlaylistProvider *provider() const;
 
