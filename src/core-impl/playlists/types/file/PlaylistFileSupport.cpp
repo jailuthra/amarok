@@ -46,7 +46,7 @@ loadPlaylistFile( const KUrl &url )
 
     QFile file;
     KUrl fileToLoad;
-
+    debug() << QString("UIDurl: %1").arg(url.prettyUrl());
     if( !url.isValid() )
     {
         error() << "url is not valid!";

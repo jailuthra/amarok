@@ -74,7 +74,7 @@ public:
     virtual QString name() const { return title(); }
     virtual QString description() const;
 
-    virtual int trackCount() const;
+    virtual int trackCount();
     virtual Meta::TrackList tracks();
     virtual void triggerTrackLoad();
 

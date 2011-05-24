@@ -564,6 +564,7 @@ SqlPodcastChannel::trackCount() const
         error() << "no results for COUNT query on playlist_tracks table!";
         return -1;
     }
+
     int trackCount = results.first().toInt();
     return m_purge ? qMin( m_purgeCount, trackCount ): trackCount;
 }
@@ -809,3 +810,16 @@ Meta::TrackList Podcasts::SqlPodcastChannel::tracks()
     return Podcasts::SqlPodcastEpisode::toTrackList( m_episodes );
 }
 
+void
+SqlPodcastChannel::removeTrack( int position )
+{
+    Q_UNUSED( position );
+
+    if (!m_episodes.isEmpty())
+    {
+        SqlPodcastEpisodePtr sqlEpisode = m_episodes.takeLast();
+        sqlEpisode->deleteFromDb();
+        m_episodes.removeLast();
+    }
+
+}

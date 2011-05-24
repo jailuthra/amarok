@@ -91,6 +91,11 @@ class AMAROK_EXPORT PlaylistManager : public QObject
         void addProvider( Playlists::PlaylistProvider * provider, int category );
 
         /**
+         * Sync all playlists in m_syncedPlaylistMap if necessary.
+         */
+        void doSyncAll();
+
+        /**
          * Do all the work necessary to sync playlists, including
          * the SyncedPlaylist creation and more.
          * @arg playlist of the master playlist

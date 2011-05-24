@@ -75,6 +75,9 @@ PlaylistManager::PlaylistManager()
 
     m_syncRelStore = new KConfigSyncRelStore();
 
+    m_playlistFileProvider = new Playlists::PlaylistFileProvider();
+    addProvider( m_playlistFileProvider, UserPlaylist );
+
     m_defaultPodcastProvider = new Podcasts::SqlPodcastProvider();
     addProvider( m_defaultPodcastProvider, PlaylistManager::PodcastChannel );
     CollectionManager::instance()->addTrackProvider( m_defaultPodcastProvider );
@@ -82,8 +85,8 @@ PlaylistManager::PlaylistManager()
     m_defaultUserPlaylistProvider = new Playlists::SqlUserPlaylistProvider();
     addProvider( m_defaultUserPlaylistProvider, UserPlaylist );
 
-    m_playlistFileProvider = new Playlists::PlaylistFileProvider();
-    addProvider( m_playlistFileProvider, UserPlaylist );
+    doSyncAll(); //Sync all syncedPlaylists
+
 }
 
 PlaylistManager::~PlaylistManager()
@@ -92,6 +95,28 @@ PlaylistManager::~PlaylistManager()
     delete m_defaultUserPlaylistProvider;
     delete m_playlistFileProvider;
     delete m_syncRelStore;
+}
+
+void
+PlaylistManager::doSyncAll()
+{
+    foreach(SyncedPlaylistPtr syncedPlaylist, m_syncedPlaylistMap.keys())
+        if (syncedPlaylist)
+        {
+            if( typeid( * syncedPlaylist->playlists().first() ) == typeid( Podcasts::SqlPodcastChannel ) )
+            {
+                if ( typeid( * syncedPlaylist ) == typeid( Podcasts::SqlPodcastChannel ) )
+                {
+
+                Podcasts::SqlPodcastChannelPtr podcast = Podcasts::SqlPodcastChannelPtr::dynamicCast( syncedPlaylist->playlists().first() );
+
+                }
+            }
+
+            if (syncedPlaylist->syncNeeded())
+                syncedPlaylist->doSync();
+        }
+
 }
 
 bool
@@ -159,9 +184,6 @@ PlaylistManager::addPlaylist( Playlists::PlaylistPtr playlist, int category )
             //reemit so models know about new playlist in their category
             emit playlistAdded( syncedPlaylistPtr, category );
         }
-
-        if (syncedPlaylist->syncNeeded())
-            syncedPlaylist->doSync();
 
     }
     else
@@ -237,6 +259,9 @@ PlaylistManager::slotUpdated()
 void
 PlaylistManager::slotPlaylistAdded( Playlists::PlaylistPtr playlist )
 {
+    DEBUG_BLOCK
+
+    debug() << QString("ADD UIDurl: %1").arg(playlist->uidUrl().url());
     addPlaylist( playlist, playlist->provider()->category() );
 }
 

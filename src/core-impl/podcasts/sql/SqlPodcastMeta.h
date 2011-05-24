@@ -122,6 +122,7 @@ class SqlPodcastChannel : public Podcasts::PodcastChannel
         //SqlPodcastChannel specific methods
         int dbId() const { return m_dbId; }
         void addEpisode( SqlPodcastEpisodePtr episode ) { m_episodes << episode; }
+        void removeTrack( int position );
 
         bool writeTags() const { return m_writeTags; }
         void setWriteTags( bool writeTags ) { m_writeTags = writeTags; }

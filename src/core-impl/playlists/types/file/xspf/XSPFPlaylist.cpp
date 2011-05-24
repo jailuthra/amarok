@@ -62,6 +62,8 @@ XSPFPlaylist::XSPFPlaylist()
     root.appendChild( createElement( "trackList" ) );
 
     appendChild( root );
+
+    triggerTrackLoad();
 }
 
 XSPFPlaylist::XSPFPlaylist( const KUrl &url, bool autoAppend )
@@ -91,6 +93,8 @@ XSPFPlaylist::XSPFPlaylist( const KUrl &url, bool autoAppend )
     {
         The::playlistManager()->downloadPlaylist( m_url, PlaylistFilePtr( this ) );
     }
+
+    triggerTrackLoad();
 }
 
 XSPFPlaylist::XSPFPlaylist( Meta::TrackList tracks )
@@ -201,18 +205,26 @@ XSPFPlaylist::loadXSPF( QTextStream &stream )
 }
 
 int
-XSPFPlaylist::trackCount() const
+XSPFPlaylist::trackCount()
 {
-    if( m_tracksLoaded )
-        return m_tracks.count();
+    //If you do not load before, m_tracks
+    //can be empty before usage.
+    //if( !m_tracksLoaded )
+    //    triggerTrackLoad();
 
     //TODO: lookup in XML directly, without loading tracks
-    return -1;
+    return m_tracks.count();
 }
 
 Meta::TrackList
 XSPFPlaylist::tracks()
 {
+    //If you do not load before, m_tracks
+    //can be empty before usage.
+    //triggerTrackLoad();
+    //DEBUG_BLOCK
+    //foreach(Meta::TrackPtr tra,m_tracks)
+    //        debug() << tra->fullPrettyName();
     return m_tracks;
 }
 
@@ -305,8 +317,7 @@ XSPFPlaylist::triggerTrackLoad()
 void
 XSPFPlaylist::addTrack( Meta::TrackPtr track, int position )
 {
-    if( !m_tracksLoaded )
-        triggerTrackLoad();
+    //triggerTrackLoad();
 
     Meta::TrackList trackList = tracks();
     int trackPos = position < 0 ? trackList.count() : position;

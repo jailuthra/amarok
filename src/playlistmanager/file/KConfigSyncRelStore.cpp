@@ -73,6 +73,7 @@ KConfigSyncRelStore::asSyncedPlaylist( const PlaylistPtr playlist )
             syncedPlaylist = SyncedPlaylistPtr( new SyncedPlaylist( playlist ) );;
             m_syncMasterMap.insert( playlist->uidUrl(), syncedPlaylist );
         }
+
     }
     else if( m_syncSlaveMap.keys().contains( playlist->uidUrl() ) )
     {

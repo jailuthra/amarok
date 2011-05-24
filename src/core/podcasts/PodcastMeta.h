@@ -231,7 +231,6 @@ class AMAROK_CORE_EXPORT PodcastChannel : public PodcastMetaCommon, public Playl
         virtual int trackCount() const { return m_episodes.count(); }
         virtual Meta::TrackList tracks();
         virtual void addTrack( Meta::TrackPtr track, int position = -1 );
-
         //PodcastMetaCommon methods
         int podcastType() { return ChannelType; }
         //override this since it's ambigous in PodcastMetaCommon and Playlist

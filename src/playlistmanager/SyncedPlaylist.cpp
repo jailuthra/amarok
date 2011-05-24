@@ -167,6 +167,7 @@ SyncedPlaylist::addPlaylist( Playlists::PlaylistPtr playlist )
 bool
 SyncedPlaylist::syncNeeded() const
 {
+    DEBUG_BLOCK
     if( isEmpty() || m_playlists.count() == 1 )
         return false;
 
@@ -174,25 +175,28 @@ SyncedPlaylist::syncNeeded() const
     a sync is needed */
     QListIterator<Playlists::PlaylistPtr> i( m_playlists );
     Playlists::PlaylistPtr master = i.next();
-    int masterTrackCount = master->trackCount();
+    int masterTrackCount = master->tracks().count();
+    debug() << QString( "Master Count.... %1").arg(masterTrackCount);
     while( i.hasNext() )
     {
         Playlists::PlaylistPtr slave = i.next();
         if( masterTrackCount != -1 )
         {
-            int slaveTrackCount = slave->trackCount();
+            int slaveTrackCount = slave->tracks().count();
+            debug() << QString( "Slave Count.... %1").arg(slaveTrackCount);
             //if the number of tracks is different a sync is certainly required
             if( slaveTrackCount != -1 && slaveTrackCount != masterTrackCount )
                 return true;
         }
         //compare track by track
+        debug() << QString( "Comparing track by track");
         TrackList masterTracks = master->tracks();
         TrackList slaveTracks = slave->tracks();
         for( int i = 0; i < masterTrackCount; i++ )
             if( masterTracks[i] != slaveTracks[i] )
                 return true;
     }
-
+    debug() << QString( "No sync needed");
     return false;
 }
 
@@ -249,9 +253,18 @@ SyncedPlaylist::doSync() const
         //Then remove everything after the position of the last track in master.
         //This removes any tracks that are not in master.
         position = master->tracks().size();
-        while( position < slave->tracks().size() )
+        debug() << QString( "before remove" );
+
+        int removeCount = slave->trackCount() - 1;
+
+        while( removeCount >= 0 )
+        {
+            debug() << QString( "removing.... %1 < %2").arg(position).arg(slave->tracks().size() - 1);
             slave->removeTrack( position );
 
+            removeCount--;
+        }
+        debug() << QString( "after remove" );
         //debug: print list
         position = 0;
         debug() << "slave playlist after removal:";
