@@ -99,8 +99,10 @@ class SqlPodcastChannel : public Podcasts::PodcastChannel
 
         ~SqlPodcastChannel();
         // Playlists::Playlist methods
+        virtual void syncTrackStatus( int position, Meta::TrackPtr otherTrack );
         virtual int trackCount() const;
-        virtual Meta::TrackList tracks() ;
+        virtual Meta::TrackList tracks();
+        virtual void addTrack( Meta::TrackPtr track, int position = -1 );
         virtual void triggerTrackLoad();
         virtual Playlists::PlaylistProvider *provider() const;
 
@@ -122,7 +124,6 @@ class SqlPodcastChannel : public Podcasts::PodcastChannel
         //SqlPodcastChannel specific methods
         int dbId() const { return m_dbId; }
         void addEpisode( SqlPodcastEpisodePtr episode ) { m_episodes << episode; }
-        void removeTrack( int position );
 
         bool writeTags() const { return m_writeTags; }
         void setWriteTags( bool writeTags ) { m_writeTags = writeTags; }

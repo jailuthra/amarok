@@ -375,7 +375,7 @@ PlaylistFileProvider::loadPlaylists()
             playlist->setGroups( groups.split( ',',  QString::SkipEmptyParts ) );
 
         m_playlists << playlist;
-        //emit playlistAdded( Playlists::PlaylistPtr::dynamicCast( playlist ) );
+        emit playlistAdded( Playlists::PlaylistPtr::dynamicCast( playlist ) );
     }
 
     //also add all files in the $KDEHOME/share/apps/amarok/playlists
@@ -399,7 +399,7 @@ PlaylistFileProvider::loadPlaylists()
         playlist->setProvider( this );
 
         m_playlists << playlist;
-        //emit playlistAdded( Playlists::PlaylistPtr::dynamicCast( playlist ) );
+        emit playlistAdded( Playlists::PlaylistPtr::dynamicCast( playlist ) );
     }
 
     m_playlistsLoaded = true;

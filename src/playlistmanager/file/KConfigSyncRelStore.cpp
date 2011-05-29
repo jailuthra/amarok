@@ -53,6 +53,7 @@ KConfigSyncRelStore::shouldBeSynced( const PlaylistPtr playlist ) const
 {
     DEBUG_BLOCK
     debug() << playlist->uidUrl().url();
+
     return m_syncMasterMap.keys().contains( playlist->uidUrl() )
            || m_syncSlaveMap.keys().contains( playlist->uidUrl() );
 }
@@ -61,7 +62,8 @@ SyncedPlaylistPtr
 KConfigSyncRelStore::asSyncedPlaylist( const PlaylistPtr playlist )
 {
     DEBUG_BLOCK
-    debug() << playlist->uidUrl().url();
+    debug() << QString("UIDurl: %1").arg( playlist->uidUrl().url() );
+
     SyncedPlaylistPtr syncedPlaylist;
     if( m_syncMasterMap.keys().contains( playlist->uidUrl() ) )
     {
@@ -70,7 +72,7 @@ KConfigSyncRelStore::asSyncedPlaylist( const PlaylistPtr playlist )
             syncedPlaylist->addPlaylist( playlist );
         else
         {
-            syncedPlaylist = SyncedPlaylistPtr( new SyncedPlaylist( playlist ) );;
+            syncedPlaylist = SyncedPlaylistPtr( new SyncedPlaylist( playlist ) );
             m_syncMasterMap.insert( playlist->uidUrl(), syncedPlaylist );
         }
 

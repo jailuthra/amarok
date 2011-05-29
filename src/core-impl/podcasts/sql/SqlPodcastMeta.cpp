@@ -810,16 +810,25 @@ Meta::TrackList Podcasts::SqlPodcastChannel::tracks()
     return Podcasts::SqlPodcastEpisode::toTrackList( m_episodes );
 }
 
-void
-SqlPodcastChannel::removeTrack( int position )
+void Podcasts::SqlPodcastChannel::syncTrackStatus( int position, Meta::TrackPtr otherTrack )
 {
-    Q_UNUSED( position );
 
-    if (!m_episodes.isEmpty())
+    Podcasts::SqlPodcastEpisodePtr slave = m_episodes.at( position );
+
+    Podcasts::SqlPodcastEpisodePtr master =
+            Podcasts::SqlPodcastEpisodePtr::dynamicCast( otherTrack );
+
+    if ( master )
     {
-        SqlPodcastEpisodePtr sqlEpisode = m_episodes.takeLast();
-        sqlEpisode->deleteFromDb();
-        m_episodes.removeLast();
-    }
 
+    slave->channel()->setImageUrl( master->channel()->imageUrl() );
+    slave->channel()->setUrl( master->channel()->url() );
+
+    }
 }
+
+void Podcasts::SqlPodcastChannel::addTrack(Meta::TrackPtr track, int position)
+{
+    addEpisode( Podcasts::SqlPodcastEpisodePtr::dynamicCast( track ) );
+}
+
