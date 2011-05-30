@@ -85,7 +85,9 @@ PlaylistManager::PlaylistManager()
     m_defaultUserPlaylistProvider = new Playlists::SqlUserPlaylistProvider();
     addProvider( m_defaultUserPlaylistProvider, UserPlaylist );
 
-    doSyncAll(); //Sync all syncedPlaylists
+    //Sync all slaves which are dependents from a master,
+    //that was not created before them.
+    doSyncDependentSlaves();
 
 }
 
@@ -98,25 +100,13 @@ PlaylistManager::~PlaylistManager()
 }
 
 void
-PlaylistManager::doSyncAll()
+PlaylistManager::doSyncDependentSlaves()
 {
-    foreach(SyncedPlaylistPtr syncedPlaylist, m_syncedPlaylistMap.keys())
-        if (syncedPlaylist)
-        {
-            if( typeid( * syncedPlaylist->playlists().first() ) == typeid( Podcasts::SqlPodcastChannel ) )
-            {
-                if ( typeid( * syncedPlaylist ) == typeid( Podcasts::SqlPodcastChannel ) )
-                {
-
-                Podcasts::SqlPodcastChannelPtr podcast = Podcasts::SqlPodcastChannelPtr::dynamicCast( syncedPlaylist->playlists().first() );
-
-                }
-            }
-
-            if (syncedPlaylist->syncNeeded())
-                syncedPlaylist->doSync();
-        }
-
+    foreach( Playlists::PlaylistPtr playlist, m_bufferSlavesSyncedPlaylistList)
+    {
+        addPlaylist( playlist, playlist->provider()->category() );
+        m_bufferSlavesSyncedPlaylistList.removeOne( playlist );
+    }
 }
 
 bool
@@ -175,16 +165,28 @@ PlaylistManager::addPlaylist( Playlists::PlaylistPtr playlist, int category )
         Playlists::PlaylistPtr syncedPlaylistPtr =
                 Playlists::PlaylistPtr::dynamicCast( syncedPlaylist );
 
-        m_playlistMap.insert( category, playlist );
-
-        if( !m_playlistMap.values( category ).contains(
-                Playlists::PlaylistPtr::dynamicCast( syncedPlaylistPtr ) ) )
+        //NOTE: Remenber to deny syncing between playlists in the same provider!!!
+        if (syncedPlaylistPtr)
         {
-            m_syncedPlaylistMap.insert( syncedPlaylist, playlist );
-            //reemit so models know about new playlist in their category
-            emit playlistAdded( syncedPlaylistPtr, category );
-        }
 
+            if( !m_playlistMap.values( category ).contains(
+                    Playlists::PlaylistPtr::dynamicCast( syncedPlaylistPtr ) ) )
+            {
+                m_syncedPlaylistMap.insert( syncedPlaylist, playlist );
+                //reemit so models know about new playlist in their category
+                emit playlistAdded( syncedPlaylistPtr, category );
+            }
+
+            m_playlistMap.insert( category, playlist );
+
+            if (syncedPlaylist->syncNeeded())
+                syncedPlaylist->doSync();
+
+        }
+        else
+        {
+            m_bufferSlavesSyncedPlaylistList.push_back( playlist );
+        }
     }
     else
     {

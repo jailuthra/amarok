@@ -91,11 +91,6 @@ class AMAROK_EXPORT PlaylistManager : public QObject
         void addProvider( Playlists::PlaylistProvider * provider, int category );
 
         /**
-         * Sync all playlists in m_syncedPlaylistMap if necessary.
-         */
-        void doSyncAll();
-
-        /**
          * Do all the work necessary to sync playlists, including
          * the SyncedPlaylist creation and more.
          * @arg playlist of the master playlist
@@ -175,6 +170,8 @@ class AMAROK_EXPORT PlaylistManager : public QObject
         void addPlaylist( Playlists::PlaylistPtr playlist, int category );
         void removePlaylist( Playlists::PlaylistPtr playlist, int category );
 
+        void doSyncDependentSlaves();
+
         static PlaylistManager *s_instance;
         PlaylistManager();
         ~PlaylistManager();
@@ -190,6 +187,8 @@ class AMAROK_EXPORT PlaylistManager : public QObject
         QMultiMap<int, Playlists::PlaylistProvider*> m_providerMap; //Map PlaylistCategories to providers
         QMultiMap<int, Playlists::PlaylistPtr> m_playlistMap;
         QMultiMap<SyncedPlaylistPtr, Playlists::PlaylistPtr> m_syncedPlaylistMap;
+
+        QList<Playlists::PlaylistPtr> m_bufferSlavesSyncedPlaylistList;
 
         QMap<int, QString> m_customCategories;
 
