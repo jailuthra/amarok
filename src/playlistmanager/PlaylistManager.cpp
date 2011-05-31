@@ -85,10 +85,6 @@ PlaylistManager::PlaylistManager()
     m_defaultUserPlaylistProvider = new Playlists::SqlUserPlaylistProvider();
     addProvider( m_defaultUserPlaylistProvider, UserPlaylist );
 
-    //Sync all slaves which are dependents from a master,
-    //that was not created before them.
-    doSyncDependentSlaves();
-
 }
 
 PlaylistManager::~PlaylistManager()
@@ -97,16 +93,6 @@ PlaylistManager::~PlaylistManager()
     delete m_defaultUserPlaylistProvider;
     delete m_playlistFileProvider;
     delete m_syncRelStore;
-}
-
-void
-PlaylistManager::doSyncDependentSlaves()
-{
-    foreach( Playlists::PlaylistPtr playlist, m_bufferSlavesSyncedPlaylistList)
-    {
-        addPlaylist( playlist, playlist->provider()->category() );
-        m_bufferSlavesSyncedPlaylistList.removeOne( playlist );
-    }
 }
 
 bool
@@ -165,27 +151,43 @@ PlaylistManager::addPlaylist( Playlists::PlaylistPtr playlist, int category )
         Playlists::PlaylistPtr syncedPlaylistPtr =
                 Playlists::PlaylistPtr::dynamicCast( syncedPlaylist );
 
-        //NOTE: Remenber to deny syncing between playlists in the same provider!!!
+        m_playlistMap.insert( category, playlist );
+
         if (syncedPlaylistPtr)
         {
 
             if( !m_playlistMap.values( category ).contains(
-                    Playlists::PlaylistPtr::dynamicCast( syncedPlaylistPtr ) ) )
+                        Playlists::PlaylistPtr::dynamicCast( syncedPlaylistPtr ) ) )
             {
                 m_syncedPlaylistMap.insert( syncedPlaylist, playlist );
                 //reemit so models know about new playlist in their category
                 emit playlistAdded( syncedPlaylistPtr, category );
             }
 
-            m_playlistMap.insert( category, playlist );
+            //NOTE: Remenber to deny syncing between playlists in the same provider!!!
+            Playlists::PlaylistPtr master = *((syncedPlaylist->playlists()).begin());
+
+            //Playlist == Master of Synchronisation?
+            if (playlist == master)
+            {
+                const QList<KUrl> slaves = m_syncRelStore->slaves( playlist );
+                QList<KUrl>::const_iterator i = slaves.begin();
+
+                for( ;i != slaves.end(); ++i)
+                {
+                    foreach( Playlists::PlaylistPtr playlistTemp ,m_playlistMap.values() )
+                    {
+                        //Sync if one of master slaves is already loaded
+                        if (playlistTemp->uidUrl() == (*i).url())
+                            m_syncRelStore->asSyncedPlaylist( playlistTemp );
+                    }
+
+                }
+            }
 
             if (syncedPlaylist->syncNeeded())
                 syncedPlaylist->doSync();
 
-        }
-        else
-        {
-            m_bufferSlavesSyncedPlaylistList.push_back( playlist );
         }
     }
     else

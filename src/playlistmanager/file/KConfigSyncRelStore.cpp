@@ -119,3 +119,8 @@ KConfigSyncRelStore::addSync( const PlaylistPtr master, const PlaylistPtr slave)
     syncedPlaylistsConfig().writeEntry( masterUrl.url(), slaveUrlStringList );
 
 }
+
+QList<KUrl> KConfigSyncRelStore::slaves(const Playlists::PlaylistPtr master)
+{
+    return m_syncSlaveMap.keys( master->uidUrl() );
+}

@@ -171,17 +171,8 @@ SyncedPlaylist::syncNeeded() const
     if( isEmpty() || m_playlists.count() == 1 )
         return false;
 
-    /*use the first playlist as the base, if the others have a difference comapared to it
-    a sync is needed */
-/*
-    QListIterator<Playlists::PlaylistPtr> i( m_playlists );
-    Playlists::PlaylistPtr master = i.next();
-    int masterTrackCount = master->trackCount();
-     debug() << "master playlist: " << master->name() << " " << master->uidUrl().url();
-    debug() << QString( "Master Count.... %1").arg(masterTrackCount);
-
-
-    while( i.hasNext() )*/
+    /* Use the first playlist as the base, if the others have a difference
+       compared to it a sync is needed */
 
     QList<Playlists::PlaylistPtr>::const_iterator i = m_playlists.begin();
     Playlists::PlaylistPtr master = *i;

@@ -188,8 +188,6 @@ class AMAROK_EXPORT PlaylistManager : public QObject
         QMultiMap<int, Playlists::PlaylistPtr> m_playlistMap;
         QMultiMap<SyncedPlaylistPtr, Playlists::PlaylistPtr> m_syncedPlaylistMap;
 
-        QList<Playlists::PlaylistPtr> m_bufferSlavesSyncedPlaylistList;
-
         QMap<int, QString> m_customCategories;
 
         QMap<KJob *, Playlists::PlaylistFilePtr> m_downloadJobMap;
