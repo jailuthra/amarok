@@ -61,6 +61,7 @@ void
 PlaylistTreeItemDelegate::paint( QPainter *painter, const QStyleOptionViewItem &option,
                                    const QModelIndex &index ) const
 {
+    return;
     if( index.parent().isValid() ) // not a root item
     {
         QStyledItemDelegate::paint( painter, option, index );

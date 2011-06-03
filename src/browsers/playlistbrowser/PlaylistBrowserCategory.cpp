@@ -65,6 +65,11 @@ PlaylistBrowserCategory::PlaylistBrowserCategory( int playlistCategory,
     m_playlistCategory( playlistCategory )
 {
     setContentsMargins( 0, 0, 0, 0 );
+
+    // set background
+    const QString bgImage = KStandardDirs::locate("data", "amarok/images/hover_info_user_playlists.png");
+    setBackgroundImage( bgImage );
+
     m_toolBar = new KToolBar( this, false, false );
     m_toolBar->setToolButtonStyle( Qt::ToolButtonTextBesideIcon );
 
@@ -113,13 +118,17 @@ PlaylistBrowserCategory::PlaylistBrowserCategory( int playlistCategory,
 
     m_playlistView->setFrameShape( QFrame::NoFrame );
     m_playlistView->setContentsMargins( 0, 0, 0, 0 );
-    m_playlistView->setAlternatingRowColors( true );
+    m_playlistView->setAlternatingRowColors( false );
     m_playlistView->header()->hide();
     //hide all columns except the first.
     for( int i = 1; i < m_playlistView->model()->columnCount(); i++ )
       m_playlistView->hideColumn( i );
 
+
+//     m_playlistView->setStyleSheet( QString("background: red") );
+
     m_playlistView->setDragEnabled( true );
+    m_playlistView->setAnimated(true);
     m_playlistView->setAcceptDrops( true );
     m_playlistView->setDropIndicatorShown( true );
 
