@@ -20,7 +20,7 @@
 
 #include "AmarokMimeData.h"
 #include "playlistmanager/PlaylistManager.h"
-#include "playlist/PlaylistModelStack.h"
+#include "playlist/PlaylistController.h"
 #include "core/support/Debug.h"
 
 #include <KIcon>
@@ -327,7 +327,7 @@ PlaylistBrowserModel::hasChildren( const QModelIndex &parent ) const
         return false;
     if( !parent.isValid() )
     {
-        return m_playlists.isEmpty();
+        return !m_playlists.isEmpty();
     }
     else if( !IS_TRACK(parent) )
     {
@@ -483,6 +483,10 @@ PlaylistBrowserModel::dropMimeData( const QMimeData *data, Qt::DropAction action
     if( action == Qt::IgnoreAction )
         return true;
 
+    //drop on track is not possible
+    if( IS_TRACK(parent) )
+        return false;
+
     const AmarokMimeData* amarokMime = dynamic_cast<const AmarokMimeData*>( data );
     if( !amarokMime )
         return false;
@@ -511,11 +515,10 @@ PlaylistBrowserModel::dropMimeData( const QMimeData *data, Qt::DropAction action
             return false;
 
         Meta::TrackList tracks = amarokMime->tracks();
-        bool allAdded = true;
         foreach( Meta::TrackPtr track, tracks )
-            /*allAdded = */playlist->addTrack( track, row )/* ? allAdded : false*/;
+            playlist->addTrack( track, row );
 
-        return allAdded;
+        return true;
     }
 
     return false;
@@ -554,7 +557,7 @@ PlaylistBrowserModel::trackRemoved( Playlists::PlaylistPtr playlist, int positio
 void
 PlaylistBrowserModel::slotRenamePlaylist( Playlists::PlaylistPtr playlist )
 {
-    if( playlist->provider()->category() != m_playlistCategory )
+    if( !playlist->provider() || playlist->provider()->category() != m_playlistCategory )
         return;
 
     //search index of this Playlist

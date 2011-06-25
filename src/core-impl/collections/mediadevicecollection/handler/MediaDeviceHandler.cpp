@@ -85,6 +85,7 @@ MediaDeviceHandler::slotDeletingHandler()
     DEBUG_BLOCK
     if( m_provider )
         The::playlistManager()->removeProvider( m_provider );
+    m_memColl = NULL;
 }
 
 void
@@ -373,11 +374,6 @@ MediaDeviceHandler::copyTrackListToDevice(const Meta::TrackList tracklist)
                 || ( tempTrack->composer()->name() != track->composer()->name() )
                 || ( tempTrack->year()->name() != track->year()->name() ) )
             {
-                debug() << "Same title, but other tags differ, not a dupe";
-                //debug() << "Source track:   " << "Artist: " << track->artist()->name() << " Album: " << track->album()->name() << " Genre: " << track->genre()->name() <<
-                //" Composer: " << track->composer()->name() << " Year: " << track->year()->name();
-                //debug() << "Candidate dupe: " << "Artist: " << tempTrack->artist()->name() << " Album: " << tempTrack->album()->name() << " Genre: " << tempTrack->genre()->name() <<
-                //" Composer: " << tempTrack->composer()->name() << " Year: " << tempTrack->year()->name();
                 continue;
             }
 
@@ -638,8 +634,7 @@ MediaDeviceHandler::removeNextTrackFromDevice()
     {
         // Pop the track off the front of the list
 
-        track = m_tracksToDelete.first();
-        m_tracksToDelete.removeFirst();
+        track = m_tracksToDelete.takeFirst();
 
         // Remove the track
 
@@ -856,6 +851,10 @@ MediaDeviceHandler::privateParseTracks()
 
         m_rcb->nextTrackToParse();
 
+        // FIXME: should we return true or false?
+        if (!m_memColl)
+            return true;
+
         MediaDeviceTrackPtr track( new MediaDeviceTrack( m_memColl ) );
 
         m_rcb->setAssociateTrack( track );
@@ -1012,21 +1011,16 @@ MediaDeviceHandler::enqueueNextCopyThread()
         // Copy the track
         ThreadWeaver::Weaver::instance()->enqueue(  new CopyWorkerThread( track,  this ) );
     }
-}
+    else
+    {
+	// Finish the progress bar
+	emit incrementProgress();
+	emit endProgressOperation( this );
 
-void
-MediaDeviceHandler::slotCopyTrackJobsDone( ThreadWeaver::Job* job )
-{
-    Q_UNUSED( job )
-    // TODO: some error checking showing tracks that could not be copied
-
-    // Finish the progress bar
-    emit incrementProgress();
-    emit endProgressOperation( this );
-
-    // Inform CollectionLocation that copying is done
-    m_isCopying = false;
-    emit copyTracksDone( true );
+	// Inform CollectionLocation that copying is done
+	m_isCopying = false;
+	emit copyTracksDone( true );
+    }
 }
 
 float
@@ -1301,7 +1295,8 @@ ParseWorkerThread::run()
 void
 ParseWorkerThread::slotDoneSuccess( ThreadWeaver::Job* )
 {
-    m_handler->m_memColl->emitCollectionReady();
+    if (m_handler->m_memColl)
+        m_handler->m_memColl->emitCollectionReady();
 }
 
 // CopyWorkerThread

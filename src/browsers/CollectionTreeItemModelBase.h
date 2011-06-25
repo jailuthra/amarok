@@ -24,7 +24,6 @@
 #include "core/collections/QueryMaker.h"
 #include "core/meta/Meta.h"
 #include "CollectionTreeItem.h"
-#include "Expression.h"
 
 #include <QAbstractItemModel>
 #include <QDateTime>
@@ -91,9 +90,8 @@ class AMAROK_EXPORT CollectionTreeItemModelBase : public QAbstractItemModel
         virtual QList<int> levels() const { return m_levelType; }
         virtual int levelCategory( const int level ) const;
 
-        virtual void addDateFilter( qint64 field, Collections::QueryMaker::NumberComparison compare, const expression_element &elem, Collections::QueryMaker *qm ) const;
-
-        virtual void addFilters( Collections::QueryMaker *qm ) const;
+        QString currentFilter() const
+        { return m_currentFilter; }
 
         void setCurrentFilter( const QString &filter );
 
@@ -116,7 +114,6 @@ class AMAROK_EXPORT CollectionTreeItemModelBase : public QAbstractItemModel
     private:
         void handleSpecialQueryResult( CollectionTreeItem::Type type, Collections::QueryMaker *qm, const Meta::DataList &dataList );
         void handleNormalQueryResult( Collections::QueryMaker *qm, const Meta::DataList &dataList );
-        QDateTime semanticDateTimeParser( const QString &text ) const;
 
         Collections::QueryMaker::QueryType mapCategoryToQueryType( int levelType ) const;
 
@@ -170,7 +167,7 @@ class CollectionTreeItemModelBase::Private
     QHash<Collections::QueryMaker* , CollectionTreeItem* > childQueries;
     QHash<Collections::QueryMaker* , CollectionTreeItem* > compilationQueries;
     QHash<Collections::QueryMaker* , CollectionTreeItem* > noLabelsQueries;
-    QHash<CollectionTreeItem*, Collections::QueryMaker*>   runningQueries;
+    QMultiHash<CollectionTreeItem*, Collections::QueryMaker*> runningQueries;
     int rowHeight;
 };
 

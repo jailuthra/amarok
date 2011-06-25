@@ -15,6 +15,7 @@ set(libcore_meta_SRCS
     meta/support/MetaUtility.cpp
     meta/support/MetaKeys.cpp
     meta/support/PrivateMetaRegistry.cpp
+    ../../shared/FileType.cpp
 )
 
 set(libcore_playlists_SRCS
@@ -105,7 +106,7 @@ kde4_add_library(amarokcore SHARED ${libcore_LIB_SRCS})
 target_link_libraries(amarokcore
     ${CMAKE_THREAD_LIBS_INIT}
     ${KDE4_KIO_LIBS}
-    ${KDE4_KUTILS_LIBS}
+#    ${KDE4_KUTILS_LIBS}
     ${KDE4_SOLID_LIBRARY}
     ${KDE4_THREADWEAVER_LIBRARIES}
     ${QT_CORE_LIBRARY}

@@ -25,7 +25,6 @@
 #include "EngineController.h"
 
 #include "MainWindow.h"
-#include "MediaDeviceMonitor.h"
 #include "amarokconfig.h"
 #include "core-impl/collections/support/CollectionManager.h"
 #include "core-impl/playlists/types/file/PlaylistFileSupport.h"
@@ -43,7 +42,6 @@
 #include "playlist/PlaylistActions.h"
 
 #include <KFileItem>
-#include <KIO/Job>
 #include <KMessageBox>
 #include <KRun>
 #include <KServiceTypeTrader>
@@ -54,9 +52,7 @@
 #include <Phonon/VolumeFaderEffect>
 
 #include <QTextDocument>
-#include <QTimer>
-
-#include <cmath>
+#include <QtCore/qmath.h>
 
 namespace The {
     EngineController* engineController() { return EngineController::instance(); }
@@ -83,6 +79,7 @@ EngineController::EngineController()
     , m_playWhenFetched( true )
     , m_volume( 0 )
     , m_currentIsAudioCd( false )
+    , m_currentAudioCdTrack( 0 )
     , m_ignoreVolumeChangeAction ( false )
     , m_ignoreVolumeChangeObserve ( false )
     , m_tickInterval( 0 )
@@ -144,6 +141,10 @@ EngineController::initializePhonon()
 
     PERF_LOG( "EngineController: loading phonon objects" )
     m_media = new Phonon::MediaObject( this );
+
+    // Enable zeitgeist support on linux
+    m_media.data()->setProperty("PlaybackTracking", true);
+
     m_audio = new Phonon::AudioOutput( Phonon::MusicCategory, this );
 
     m_path = Phonon::createPath( m_media.data(), m_audio.data() );
@@ -259,6 +260,9 @@ EngineController::supportedMimeTypes()
 
     // Add whitelist hacks
     mimeTable << "audio/x-m4b"; // MP4 Audio Books have a different extension that KFileItem/Phonon don't grok
+
+    if( mimeTable.contains( "audio/x-flac" ) )
+        mimeTable << "audio/flac";
 
     // We special case this, as otherwise the users would hate us
     if( ( !mimeTable.contains( "audio/mp3" ) && !mimeTable.contains( "audio/x-mp3" ) ) && !installDistroCodec() )
@@ -442,8 +446,8 @@ EngineController::playUrl( const KUrl &url, uint offset )
     m_media.data()->stop();
     resetFadeout();
 
-    debug() << "URL: " << url.url();
-    debug() << "offset: " << offset;
+    debug() << "URL: " << url << url.url();
+    debug() << "Offset: " << offset;
 
     if ( url.url().startsWith( "audiocd:/" ) )
     {
@@ -455,6 +459,15 @@ EngineController::playUrl( const KUrl &url, uint offset )
         debug() << "play track from cd";
         QString trackNumberString = url.url();
         trackNumberString = trackNumberString.remove( "audiocd:/" );
+
+        const QString devicePrefix( "?device=" );
+        QString device("");
+        if (trackNumberString.contains(devicePrefix))
+        {
+            int pos = trackNumberString.indexOf( devicePrefix );
+            device = trackNumberString.mid( pos + devicePrefix.size() );
+            trackNumberString = trackNumberString.left( pos );
+        }
 
         QStringList parts = trackNumberString.split( '/' );
 
@@ -475,25 +488,27 @@ EngineController::playUrl( const KUrl &url, uint offset )
 
         int trackNumber = parts.at( 1 ).toInt();
 
-        debug() << "3.2.1...";
+        debug() << "Old device: " << m_media.data()->currentSource().deviceName();
 
         Phonon::MediaSource::Type type = m_media.data()->currentSource().type();
-        if( type != Phonon::MediaSource::Disc )
+        if( type != Phonon::MediaSource::Disc || m_media.data()->currentSource().deviceName() != device )
         {
             m_media.data()->clear();
-            m_media.data()->setCurrentSource( Phonon::Cd );
+            debug() << "New device: " << device;
+            m_media.data()->setCurrentSource( Phonon::MediaSource( Phonon::Cd, device ) );
         }
 
-        debug() << "boom?";
+        debug() << "Track: " << trackNumber;
+        m_currentAudioCdTrack = trackNumber;
         m_controller.data()->setCurrentTitle( trackNumber );
         debug() << "no boom?";
 
         if( type == Phonon::MediaSource::Disc )
         {
-            // The track has changed but the slot will not be called,
-            // because it's still the same media source, which means
+            // The track has changed but the slot may not be called,
+            // because it may be still the same media source, which means
             // we need to do it explicitly.
-            slotNewTrackPlaying( Phonon::Cd );
+            slotNewTrackPlaying( m_media.data()->currentSource() );
         }
 
         //reconnect it
@@ -551,8 +566,7 @@ EngineController::stop( bool forceInstant ) //SLOT
         unsubscribeFrom( m_currentTrack );
         if( m_currentAlbum )
             unsubscribeFrom( m_currentAlbum );
-        m_currentTrack = 0;
-        emit trackChanged( Meta::TrackPtr( 0 ) );
+
         m_currentTrack = 0;
         m_currentAlbum = 0;
         emit trackChanged( m_currentTrack );
@@ -832,7 +846,7 @@ EngineController::eqMaxGain() const
    if( mEqPar.isEmpty() )
        return 100.0;
    double mScale;
-   mScale = ( fabs(mEqPar.at(0).maximumValue().toDouble() ) +  fabs( mEqPar.at(0).minimumValue().toDouble() ) );
+   mScale = ( qAbs(mEqPar.at(0).maximumValue().toDouble() ) +  qAbs( mEqPar.at(0).minimumValue().toDouble() ) );
    mScale /= 2.0;
    return mScale;
 }
@@ -861,11 +875,11 @@ EngineController::eqBandsFreq() const
         {
             if( rx.cap( 0 ).toInt() < 1000 )
             {
-                mBandsFreq << QString( rx.cap( 0 )).append( "\nHz" );
+                mBandsFreq << i18n( "%0\nHz" ).arg( rx.cap( 0 ) );
             }
             else
             {
-                mBandsFreq << QString::number( rx.cap( 0 ).toInt()/1000 ).append( "\nkHz" );
+                mBandsFreq << i18n( "%0\nkHz" ).arg( QString::number( rx.cap( 0 ).toInt()/1000 ) );
             }
         }
     }
@@ -896,7 +910,7 @@ EngineController::eqUpdate() //SLOT
         foreach( const Phonon::EffectParameter &mParam, mEqPar )
         {
             scaledVal = mEqParNewIt.hasNext() ? mEqParNewIt.next() : 0;
-            scaledVal *= ( fabs(mParam.maximumValue().toDouble() ) +  fabs( mParam.minimumValue().toDouble() ) );
+            scaledVal *= ( qAbs(mParam.maximumValue().toDouble() ) +  qAbs( mParam.minimumValue().toDouble() ) );
             scaledVal /= 200.0;
             m_equalizer.data()->setParameterValue( mParam, scaledVal );
         }
@@ -1106,8 +1120,8 @@ EngineController::slotNewTrackPlaying( const Phonon::MediaSource &source )
         debug() << "Using gain of" << gain << "with relative peak of" << peak;
         // we calculate the volume change ourselves, because m_preamp.data()->setVolumeDecibel is
         // a little confused about minus signs
-        m_preamp.data()->setVolume( exp( gain * log10over20 ) );
-        m_preamp.data()->fadeTo( exp( gain * log10over20 ), 0 ); // HACK: we use fadeTo because setVolume is b0rked in Phonon Xine before r1028879
+        m_preamp.data()->setVolume( qExp( gain * log10over20 ) );
+        m_preamp.data()->fadeTo( qExp( gain * log10over20 ), 0 ); // HACK: we use fadeTo because setVolume is b0rked in Phonon Xine before r1028879
     }
     else if( m_preamp )
     {
@@ -1130,7 +1144,8 @@ void
 EngineController::slotStateChanged( Phonon::State newState, Phonon::State oldState ) //SLOT
 {
     DEBUG_BLOCK
-    const int maxErrors = 5;
+
+    static const int maxErrors = 5;
     static int errorCount = 0;
 
     // Sanity checks:
@@ -1153,6 +1168,9 @@ EngineController::slotStateChanged( Phonon::State newState, Phonon::State oldSta
         errorCount++;
         if ( errorCount >= maxErrors )
         {
+            // reset error count
+            errorCount = 0;
+
             Amarok::Components::logger()->longMessage( i18n( "Too many errors encountered in playlist. Playback stopped." ), Amarok::Logger::Warning );
             error() << "Stopping playlist.";
         }
@@ -1303,9 +1321,10 @@ EngineController::slotSeekableChanged( bool seekable )
 void EngineController::slotTitleChanged( int titleNumber )
 {
     DEBUG_BLOCK
-    Q_UNUSED( titleNumber );
-
-    slotAboutToFinish();
+    if ( titleNumber != m_currentAudioCdTrack )
+    {
+        slotAboutToFinish();
+    }
 }
 
 void EngineController::slotVolumeChanged( qreal newVolume )

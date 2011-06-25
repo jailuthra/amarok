@@ -120,6 +120,9 @@ DEBUG_BLOCK
                 m_query.setType( "( upnp:class derivedfrom \"object.item.audioItem\" )" );
                 baseUrl.addQueryItem( "getCount", "1" );
                 break;
+
+            default:
+                break;
         }
     }
     // we don't deal with compilations
@@ -458,13 +461,12 @@ void UpnpQueryMaker::handleTracks( Meta::TrackList list )
 
 void UpnpQueryMaker::handleCustom( const KIO::UDSEntryList& list )
 {
-    switch( m_returnFunction ) {
-        case Count:
-            Q_ASSERT( !list.empty() );
-            QString count = list.first().stringValue( KIO::UDSEntry::UDS_NAME );
-            m_collection->setProperty( "numberOfTracks", count.toUInt() );
-            emit newResultReady( m_collection->collectionId(), QStringList( count ) );
-            break;
+    if( m_returnFunction == Count )
+    {
+        Q_ASSERT( !list.empty() );
+        QString count = list.first().stringValue( KIO::UDSEntry::UDS_NAME );
+        m_collection->setProperty( "numberOfTracks", count.toUInt() );
+        emit newResultReady( m_collection->collectionId(), QStringList( count ) );
     }
 }
 

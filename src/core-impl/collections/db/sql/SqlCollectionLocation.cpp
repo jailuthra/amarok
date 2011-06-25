@@ -205,8 +205,8 @@ SqlCollectionLocation::insert( const Meta::TrackPtr &track, const QString &url )
     if( track->composer() )
         metaTrack->setComposer( track->composer()->name() );
 
-    if( track->year() > 0 )
-        metaTrack->setYear( track->year() );
+    if( track->year() && track->year()->year() > 0 )
+        metaTrack->setYear( track->year()->year() );
 
     if( track->genre() )
         metaTrack->setGenre( track->genre()->name() );
@@ -223,28 +223,28 @@ SqlCollectionLocation::insert( const Meta::TrackPtr &track, const QString &url )
         metaTrack->setUidUrl( uid );
     */
 
-    if( !track->bpm() >= 0 )
+    if( track->bpm() > 0 )
         metaTrack->setBpm( track->bpm() );
 
     if( !track->comment().isEmpty() )
         metaTrack->setComment( track->comment() );
 
-    if( !track->length() >= 0 )
+    if( track->length() > 0 )
         metaTrack->setLength( track->length() );
 
     // the filesize is updated every time after the
     // file is changed. Doesn't make sense to set it.
 
-    if( !track->sampleRate() >= 0 )
+    if( track->sampleRate() > 0 )
         metaTrack->setSampleRate( track->sampleRate() );
 
-    if( !track->bitrate() >= 0 )
+    if( track->bitrate() > 0 )
         metaTrack->setBitrate( track->bitrate() );
 
-    if( !track->trackNumber() >= 0 )
+    if( track->trackNumber() > 0 )
         metaTrack->setTrackNumber( track->trackNumber() );
 
-    if( !track->discNumber() >= 0 )
+    if( track->discNumber() > 0 )
         metaTrack->setDiscNumber( track->discNumber() );
 
     Meta::ReplayGainTag modes[] = { Meta::ReplayGain_Track_Gain,
@@ -253,19 +253,33 @@ SqlCollectionLocation::insert( const Meta::TrackPtr &track, const QString &url )
         Meta::ReplayGain_Album_Peak };
 
     for( int i=0; i<4; i++ )
-        if( !track->replayGain( modes[i] ) != 0 )
+        if( track->replayGain( modes[i] ) != 0 )
             metaTrack->setReplayGain( modes[i], track->replayGain( modes[i] ) );
 
     Meta::LabelList labels = track->labels();
     foreach( Meta::LabelPtr label, labels )
         metaTrack->addLabel( label );
+    
+    Amarok::FileType fileType = Amarok::FileTypeSupport::fileType( track->type() );
+    if( fileType != Amarok::Unknown )
+        metaTrack->setType( fileType );
 
     metaTrack->endMetaDataUpdate();
 
     // Used to be updated after changes commit to prevent crash on NULL pointer access
     // if metaTrack had no album.
-    if( track->album() && track->album()->hasImage() && !metaTrack->album()->hasImage() )
-        metaTrack->album()->setImage( track->album()->image() );
+    if( track->album() && metaTrack->album() )
+    {
+        metaTrack->beginMetaDataUpdate();
+        
+        if( track->album()->hasAlbumArtist() && !metaTrack->album()->hasAlbumArtist() )
+            metaTrack->setAlbumArtist( track->album()->albumArtist()->name() );
+        
+        if( track->album()->hasImage() && !metaTrack->album()->hasImage() )
+            metaTrack->album()->setImage( track->album()->image() );
+        
+        metaTrack->endMetaDataUpdate();
+    }
 
     metaTrack->setWriteFile( true );
 

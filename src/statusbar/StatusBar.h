@@ -19,7 +19,6 @@
 #ifndef AMAROK_STATUS_BAR_H
 #define AMAROK_STATUS_BAR_H
 
-#include "MainWindow.h"
 #include "amarok_export.h"
 #include "core/meta/Meta.h"
 #include "statusbar/CompoundProgressBar.h"
@@ -34,6 +33,7 @@
 #define POPUP_MESSAGE_DURATION 5000
 
 class QNetworkReply;
+class MainWindow;
 class StatusBar;
 
 namespace The
@@ -56,9 +56,6 @@ class AMAROK_EXPORT StatusBar : public KStatusBar
 public:
     enum MessageType { Information, Question, Sorry, Warning, Error, ShowAgainCheckBox, None, OperationCompleted };
 
-    StatusBar( QWidget * parent );
-    ~StatusBar();
-
     static StatusBar* instance() { return s_instance; }
 
     void shortMessage( const QString &text );
@@ -77,7 +74,7 @@ public slots:
      * @see incrementProgress( QObject* )
      * @see setProgressStatus( const QObject*, const QString& )
      */
-    ProgressBar *newProgressOperation( QObject *owner, const QString & description );
+    ProgressBar *newProgressOperation( QObject *owner, const QString &description );
 
     /**
      * Monitor progress for a KIO::Job, very handy.
@@ -130,46 +127,48 @@ public slots:
      * Uses the return value from sender() to determine the owner of
      * the progress bar in question
      */
-
     void endProgressOperation( QObject *owner )
     {
         m_progressBar->endProgressOperation( owner );
     }
 
+    /** Required to put the progressbar inline (BrowserDock)
+      * @returns the compound progressbar instance
+      */
+    CompoundProgressBar *compoundProgressBar() { return m_progressBar; }
+
+    QFrame *progressArea() { return m_progressArea; }
+
 protected:
 
 protected slots:
-    void stopped();
-    void paused();
-    void trackPlaying( Meta::TrackPtr track );
-    void trackMetadataChanged( Meta::TrackPtr track );
-
     void hideProgress();
     void nextShortMessage();
     void hideLongMessage();
 
 private:
-    void updateInfo( Meta::TrackPtr track );
+    /** StatusBar is a singleton and there should be only one */
+    StatusBar( QWidget *parent );
 
-    CompoundProgressBar * m_progressBar;
+    ~StatusBar();
 
-    KHBox * m_nowPlayingWidget;
-    KSqueezedTextLabel * m_nowPlayingLabel;
-    QLabel * m_nowPlayingEmblem;
-    QFrame *m_separator;
+    void showMessageInProgressArea( const QString &message );
+    void clearMessageInProgressArea();
 
-    QLabel * m_playlistLengthLabel;
+    friend class MainWindow;
+
+    QFrame *m_progressArea;
+    CompoundProgressBar *m_progressBar;
+    QLabel *m_messageLabel;
 
     QList<QString> m_shortMessageQue;
 
     bool m_busy;
-    QTimer * m_shortMessageTimer;
 
-    Meta::TrackPtr m_currentTrack;
+    QTimer *m_shortMessageTimer;
 
 private slots:
     void slotLongMessage( const QString &text, MessageType type = Information );
-    void updateTotalPlaylistLength();
 };
 
 Q_DECLARE_METATYPE( StatusBar::MessageType )

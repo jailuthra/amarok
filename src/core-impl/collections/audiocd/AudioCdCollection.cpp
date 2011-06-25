@@ -19,6 +19,7 @@
 
 #include "AudioCdCollection.h"
 
+#include "MainWindow.h"
 #include "amarokconfig.h"
 #include "AudioCdCollectionLocation.h"
 #include "AudioCdMeta.h"
@@ -36,6 +37,7 @@
 
 #include <kio/job.h>
 #include <kio/netaccess.h>
+#include <kio/udsentry.h>
 
 #include <solid/device.h>
 #include <solid/opticaldrive.h>
@@ -253,7 +255,7 @@ AudioCdCollection::infoFetchComplete( KJob *job )
 
                 debug() << "Track name: " << trackName;
 
-                QString padding = i < 10 ? "0" : QString();
+                QString padding = (i + 1) < 10 ? "0" : QString();
 
                 QString baseFileName = m_fileNamePattern;
                 debug() << "Track Base File Name (before): " << baseFileName;
@@ -276,6 +278,7 @@ AudioCdCollection::infoFetchComplete( KJob *job )
 
                 trackPtr->setTrackNumber( i + 1 );
                 trackPtr->setFileNameBase( baseFileName );
+                trackPtr->setLength( trackLength( i + 1 ) );
 
                 memoryCollection()->addTrack( Meta::TrackPtr::staticCast( trackPtr ) );
 
@@ -321,6 +324,19 @@ AudioCdCollection::infoFetchComplete( KJob *job )
         debug() << "Tell MainWindow to start playing us immediately.";
         The::mainWindow()->playAudioCd();
     }
+}
+
+qint64
+AudioCdCollection::trackLength(int i) const
+{
+    KUrl kioUrl = audiocdUrl( QString("Track%1.wav").arg(i, 2, 10, QChar('0') ) );
+    KIO::UDSEntry uds;
+    if ( KIO::NetAccess::stat(kioUrl, uds, NULL) )
+    {
+        qint64 samples = (uds.numberValue(KIO::UDSEntry::UDS_SIZE, 44) - 44) / 4;
+        return (samples - 44) * 10 / 441;
+    }
+    return 0;
 }
 
 QString
@@ -455,6 +471,7 @@ AudioCdCollection::noInfoAvailable()
 
         trackPtr->setTrackNumber( i );
         trackPtr->setFileNameBase( trackName );
+        trackPtr->setLength( trackLength( i ) );
 
         memoryCollection()->addTrack( Meta::TrackPtr::staticCast( trackPtr ) );
 

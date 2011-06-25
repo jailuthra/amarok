@@ -1,6 +1,7 @@
 [Desktop Entry]
 Name=Video
 Name[bg]=Видео
+Name[bs]=Video isječak
 Name[ca]=Vídeo
 Name[ca@valencia]=Vídeo
 Name[cs]=Video
@@ -17,7 +18,6 @@ Name[fa]=ویدیو
 Name[fi]=Video
 Name[fr]=Vidéo
 Name[ga]=Fís
-Name[gl]=Vídeo
 Name[he]=וידאו
 Name[hne]=वीडियो
 Name[hr]=Video
@@ -52,6 +52,7 @@ Name[sr@latin]=Video
 Name[sv]=Video
 Name[th]=วิดีโอ
 Name[tr]=Video
+Name[ug]=سىن
 Name[uk]=Відео
 Name[wa]=Videyo
 Name[x-test]=xxVideoxx

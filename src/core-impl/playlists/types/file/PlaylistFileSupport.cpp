@@ -108,7 +108,7 @@ loadPlaylistFile( const KUrl &url )
         KIO::FileCopyJob * job = KIO::file_copy( url , KUrl( tempFileName ), 0774 , KIO::Overwrite | KIO::HideProgressInfo );
 
         if( The::statusBar() )
-            QMetaObject::invokeMethod( The::statusBar(), "newProgressJobOperation",
+            QMetaObject::invokeMethod( The::statusBar(), "newProgressOperation",
                                        Qt::QueuedConnection,
                                        Q_ARG(QObject*, job),
                                        Q_ARG(QString, i18n("Downloading remote playlist" ) ) );
@@ -156,13 +156,8 @@ loadPlaylistFile( const KUrl &url )
 }
 
 bool
-exportPlaylistFile( const Meta::TrackList &list, const KUrl &path )
-{
-    return exportPlaylistFile( list, path, QList<int>() );
-}
-
-bool
-exportPlaylistFile( const Meta::TrackList &list, const KUrl &path, const QList<int> &queued )
+exportPlaylistFile( const Meta::TrackList &list, const KUrl &path, bool relative,
+                    const QList<int> &queued )
 {
     PlaylistFormat format = Playlists::getFormat( path );
     bool result = false;
@@ -184,10 +179,10 @@ exportPlaylistFile( const Meta::TrackList &list, const KUrl &path, const QList<i
             break;
     }
 
-    if ( playlist )
+    if( playlist )
     {
         playlist->setQueue( queued );
-        result = playlist->save( path.path(), AmarokConfig::relativePlaylist() );
+        result = playlist->save( path.path(), relative );
     }
     else
     {

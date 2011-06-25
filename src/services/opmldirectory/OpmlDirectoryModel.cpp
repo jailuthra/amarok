@@ -291,7 +291,7 @@ OpmlDirectoryModel::slotAddOpmlAction()
     }
 
     KDialog *dialog = new KDialog( The::mainWindow() );
-    dialog->setCaption( i18n( "Add OPML" ) );
+    dialog->setCaption( i18nc( "Heading of Add OPML dialog", "Add OPML" ) );
     dialog->setButtons( KDialog::Ok | KDialog::Cancel );
     QWidget *opmlAddWidget = new QWidget( dialog );
     Ui::AddOpmlWidget widget;
@@ -471,12 +471,16 @@ OpmlDirectoryModel::subscribe( const QModelIndexList &indexes ) const
     {
         if( !outline )
             continue;
-        if( outline->opmlNodeType() != RssUrlNode )
-            continue;
-        if( !outline->attributes().contains( "xmlUrl" ) )
+
+        KUrl url;
+        if( outline->attributes().contains( "xmlUrl" ) )
+            url = KUrl( outline->attributes()["xmlUrl"] );
+        else if( outline->attributes().contains( "url" ) )
+            url = KUrl( outline->attributes()["url"] );
+
+        if( url.isEmpty() )
             continue;
 
-        KUrl url( outline->attributes()["xmlUrl"] );
         The::playlistManager()->defaultPodcasts()->addPodcast( url );
     }
 }

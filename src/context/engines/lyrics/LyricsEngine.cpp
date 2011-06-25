@@ -33,10 +33,11 @@ using namespace Context;
 LyricsEngine::LyricsEngine( QObject* parent, const QList<QVariant>& /*args*/ )
     : DataEngine( parent )
     , LyricsObserver( LyricsManager::self() )
+    , m_isUpdateInProgress( false )
 {
 
     EngineController* engine = The::engineController();
-    connect( engine, SIGNAL(trackChanged(Meta::TrackPtr)),
+    connect( engine, SIGNAL( trackChanged( Meta::TrackPtr ) ),
              this, SLOT( update() ), Qt::QueuedConnection );
     connect( engine, SIGNAL( trackMetadataChanged( Meta::TrackPtr ) ),
              this, SLOT( onTrackMetadataChanged( Meta::TrackPtr ) ), Qt::QueuedConnection );
@@ -62,28 +63,21 @@ bool LyricsEngine::sourceRequestEvent( const QString& name )
 
 void LyricsEngine::onTrackMetadataChanged( Meta::TrackPtr track )
 {
-    QString artist = track->artist() ? track->artist()->name() : QString();
-    QString title = track->name();
-    if( (artist != m_prevTrackMetadata.artist) || (title != m_prevTrackMetadata.title) )
-    {
-        m_prevTrackMetadata.artist = artist;
-        m_prevTrackMetadata.title = title;
+    DEBUG_BLOCK
+
+    // Only update if the lyrics have changed.
+    if( m_prevLyrics.text != track->cachedLyrics() )
         update();
-    }
 }
 
 void LyricsEngine::update()
 {
     DEBUG_BLOCK
-    if( !ScriptManager::instance()->lyricsScriptRunning() ) // no lyrics, and no lyrics script!
-    {
-        debug() << "no lyrics script running";
-        removeAllData( "lyrics" );
-        setData( "lyrics", "noscriptrunning", "noscriptrunning" );
-        disconnect( ScriptManager::instance(), SIGNAL(lyricsScriptStarted()), this, 0 );
-        connect( ScriptManager::instance(), SIGNAL(lyricsScriptStarted()), SLOT(update()) );
+
+    if( m_isUpdateInProgress )
         return;
-    }
+
+    m_isUpdateInProgress = true;
 
     // -- get current title and artist
     Meta::TrackPtr currentTrack = The::engineController()->currentTrack();
@@ -93,6 +87,7 @@ void LyricsEngine::update()
         m_prevLyrics.clear();
         removeAllData( "lyrics" );
         setData( "lyrics", "stopped", "stopped" );
+        m_isUpdateInProgress = false;
         return;
     }
 
@@ -135,6 +130,7 @@ void LyricsEngine::update()
     {
         debug() << "nothing changed:" << lyrics.title;
         newLyrics( lyrics );
+        m_isUpdateInProgress = false;
         return;
     }
 
@@ -148,11 +144,24 @@ void LyricsEngine::update()
     }
     else
     {
+        // no lyrics, and no lyrics script!
+        if( !ScriptManager::instance()->lyricsScriptRunning() )
+        {
+            debug() << "no lyrics script running";
+            removeAllData( "lyrics" );
+            setData( "lyrics", "noscriptrunning", "noscriptrunning" );
+            disconnect( ScriptManager::instance(), SIGNAL(lyricsScriptStarted()), this, 0 );
+            connect( ScriptManager::instance(), SIGNAL(lyricsScriptStarted()), SLOT(update()) );
+            m_isUpdateInProgress = false;
+            return;
+        }
+
         // fetch by lyrics script
         removeAllData( "lyrics" );
         setData( "lyrics", "fetching", "fetching" );
         ScriptManager::instance()->notifyFetchLyrics( lyrics.artist, lyrics.title );
     }
+    m_isUpdateInProgress = false;
 }
 
 void LyricsEngine::newLyrics( const LyricsData &lyrics )

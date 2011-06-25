@@ -289,7 +289,6 @@ IpodHandler::init()
     GError *err = 0;
     QString initError = i18n( "iPod was not initialized:" );
     QString initErrorCaption = i18n( "iPod Initialization Failed" );
-    bool wasInitialized = false;
 
     // First attempt to parse the database
 
@@ -436,7 +435,6 @@ IpodHandler::init()
             {
                 KMessageBox::information( 0, i18n( "The iPod was successfully initialized." ), i18n( "iPod Initialized" ) );
                 debug() << "iPod was initialized";
-                wasInitialized = true;
                 m_success = true;
             }
         }
@@ -1415,11 +1413,11 @@ IpodHandler::deleteFile( const KUrl &url )
 
     m_jobcounter++;
 
-    if( m_jobcounter < IPOD_MAX_CONCURRENT_JOBS )
-        removeNextTrackFromDevice();
-
     connect( job, SIGNAL( result( KJob * ) ),
              this,  SLOT( fileDeleted( KJob * ) ) );
+    
+    if( m_jobcounter < IPOD_MAX_CONCURRENT_JOBS )
+        removeNextTrackFromDevice();
 
     return;
 }
@@ -1428,8 +1426,11 @@ void
 IpodHandler::fileDeleted( KJob *job )  //SLOT
 {
     DEBUG_BLOCK
-    if( job->error() )
-        debug() << "file deletion failed: " << job->errorText();
+    // HACK
+    // Filtrate #111 error (File or directory doesn't exist)
+    // Since It always present, we can ignore this "error"
+    if( job->error() && job->error() != 111 )
+        debug() << "file deletion failed: " << job->errorString();
 
     m_jobcounter--;
 

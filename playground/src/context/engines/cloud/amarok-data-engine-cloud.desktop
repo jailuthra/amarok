@@ -1,6 +1,7 @@
 [Desktop Entry]
 Name=Cloud Data Engine
 Name[bg]=Ядро за Cloud
+Name[bs]=Pogon podataka u oblaku
 Name[ca]=Motor de dades del Cloud
 Name[ca@valencia]=Motor de dades del Cloud
 Name[cs]=Datový nástroj Cloud
@@ -12,9 +13,9 @@ Name[en_GB]=Cloud Data Engine
 Name[es]=Motor de datos Nube
 Name[et]=Pilve andmete mootor
 Name[eu]=Laino datuen motorea
+Name[fi]=Pilvitietomoottori
 Name[fr]=Moteur de données Nuage
 Name[ga]=Inneall Sonraí Cloud
-Name[gl]=Motor de dados de nube
 Name[hne]=क्लाउड डाटा इंजिन
 Name[hu]=Felhő-adatmotor
 Name[is]=Ský (Cloud) gagnarvélin
@@ -42,7 +43,7 @@ Name[sr]=Датомотор облака
 Name[sr@ijekavian]=Датомотор облака
 Name[sr@ijekavianlatin]=Datomotor oblaka
 Name[sr@latin]=Datomotor oblaka
-Name[sv]=Datagränssnitt för Cloud
+Name[sv]=Datagränssnitt för molnet
 Name[th]=กลไกข้อมูลแบบกลุ่มเมฆ
 Name[tr]=Cloud Veri Motoru
 Name[uk]=Рушій даних Cloud

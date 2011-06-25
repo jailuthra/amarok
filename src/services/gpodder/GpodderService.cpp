@@ -171,9 +171,9 @@ void GpodderService::polish()
 
     m_proxyModel = new GpodderSortFilterProxyModel( this );
     m_proxyModel->setDynamicSortFilter( true );
+    m_proxyModel->setFilterCaseSensitivity( Qt::CaseInsensitive );
 
     m_proxyModel->setSourceModel( sourceModel );
-
 
     setModel( m_proxyModel );
 
@@ -206,7 +206,7 @@ void GpodderService::itemSelected( CollectionTreeItem * selectedItem )
 // Filter slots
 void GpodderService::slotSetFilterTimeout()
 {
-
+    
     m_proxyModel->setFilterWildcard( m_searchWidget->currentText() );
 }
 

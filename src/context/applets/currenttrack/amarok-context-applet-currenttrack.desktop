@@ -1,6 +1,7 @@
 [Desktop Entry]
 Name=Current Track
 Name[bg]=Текущ запис
+Name[bs]=Trenutna numera
 Name[ca]=Peça actual
 Name[ca@valencia]=Peça actual
 Name[cs]=Aktuální stopa
@@ -15,6 +16,7 @@ Name[eu]=Uneko pista
 Name[fa]=شیار جاری
 Name[fi]=Soiva kappale
 Name[ga]=An tAmhrán Reatha
+Name[gl]=Pista actual
 Name[hu]=Jelenlegi szám
 Name[is]=Núverandi lag
 Name[it]=Traccia attuale

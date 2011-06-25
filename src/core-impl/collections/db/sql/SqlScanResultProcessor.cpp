@@ -267,11 +267,11 @@ SqlScanResultProcessor::commitTrack( CollectionScanner::Track *track,
 
     if( (m_type == FullScan || metaTrack->score() == 0) &&
         track->score() >= 0 )
-        metaTrack->setScore( track->score() * 100.0 );
+        metaTrack->setScore( track->score() );
 
     if( (m_type == FullScan || metaTrack->rating() == 0.0) &&
         track->rating() >= 0 )
-        metaTrack->setRating( track->rating() * 10.0 );
+        metaTrack->setRating( track->rating() );
 
     if( (m_type == FullScan || metaTrack->length() == 0) &&
         track->length() >= 0 )
@@ -327,8 +327,19 @@ SqlScanResultProcessor::deleteDeletedDirectories()
 {
     SqlStorage *storage = m_collection->sqlStorage();
 
-    // -- get all directories
-    QString query = QString( "SELECT id FROM directories;" );
+    // -- get a list of all mounted device ids
+    QList<int> idList = m_collection->mountPointManager()->getMountedDeviceIds();
+    QString deviceIds;
+    foreach( int id, idList )
+    {
+        if ( !deviceIds.isEmpty() ) deviceIds += ',';
+        deviceIds += QString::number( id );
+    }
+
+    // -- get all (mounted) directories
+    QString query = QString( "SELECT id FROM directories "
+                             "WHERE deviceid IN (%1);").arg( deviceIds );
+
     QStringList res = storage->query( query );
 
     // -- check if the have been found during the scan

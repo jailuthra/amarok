@@ -18,6 +18,7 @@
 #include "SqlPodcastProvider.h"
 #include <kprogressdialog.h>
 
+#include "MainWindow.h"
 #include "core/support/Amarok.h"
 #include "core-impl/collections/support/CollectionManager.h"
 #include "context/popupdropper/libpud/PopupDropperItem.h"
@@ -32,6 +33,7 @@
 #include "statusbar/StatusBar.h"
 #include "SvgHandler.h"
 #include "OpmlWriter.h"
+#include "QStringx.h"
 
 #include "ui_SqlPodcastProviderSettingsWidget.h"
 
@@ -51,10 +53,11 @@
 #include <QDir>
 #include <QTimer>
 #include <QCheckBox>
+#include <QMap>
 
 using namespace Podcasts;
 
-static const int PODCAST_DB_VERSION = 4;
+static const int PODCAST_DB_VERSION = 5;
 static const QString key( "AMAROK_PODCAST" );
 static const QString PODCAST_TMP_POSTFIX( ".tmp" );
 
@@ -89,7 +92,7 @@ SqlPodcastProvider::SqlPodcastProvider()
                                .readEntry( "Maximum Simultaneous Downloads", 4 );
     m_maxConcurrentUpdates = Amarok::config( "Podcasts" )
                              .readEntry( "Maximum Simultaneous Updates", 4 );
-    m_baseDownloadDir = Amarok::config( "Podcasts" ).readEntry( "Base Downlaod Directory",
+    m_baseDownloadDir = Amarok::config( "Podcasts" ).readEntry( "Base Download Directory",
                                                            Amarok::saveLocation( "podcasts" ) );
 
     QStringList values;
@@ -167,9 +170,9 @@ SqlPodcastProvider::loadPodcasts()
 
     QStringList results = sqlStorage->query( "SELECT id, url, title, weblink, image"
         ", description, copyright, directory, labels, subscribedate, autoscan, fetchtype"
-        ", haspurge, purgecount, writetags FROM podcastchannels;" );
+        ", haspurge, purgecount, writetags, filenamelayout FROM podcastchannels;" );
 
-    int rowLength = 15;
+    int rowLength = 16;
     for( int i = 0; i < results.size(); i += rowLength )
     {
         QStringList channelResult = results.mid( i, rowLength );
@@ -621,6 +624,47 @@ SqlPodcastProvider::configureProvider()
             startTimer();
         else
             m_updateTimer->stop();
+        KUrl adjustedNewPath = settings.m_baseDirUrl->url();
+        adjustedNewPath.adjustPath( KUrl::RemoveTrailingSlash );
+        if( adjustedNewPath != m_baseDownloadDir )
+        {
+            m_baseDownloadDir = adjustedNewPath;
+            Amarok::config( "Podcasts" ).writeEntry( "Base Download Directory", m_baseDownloadDir );
+            if( !m_channels.isEmpty() )
+            {
+                //TODO: check if there actually are downloaded episodes
+                KDialog moveAllDialog;
+                moveAllDialog.setCaption( i18n( "Move Podcasts" ) );
+
+                KVBox *vbox = new KVBox( &moveAllDialog );
+
+                QString question( i18n( "Do you want to move all downloaded episodes to the "
+                                       "new location?") );
+                QLabel *label = new QLabel( question, vbox );
+                label->setWordWrap( true );
+                label->setMaximumWidth( 400 );
+
+                moveAllDialog.setMainWidget( vbox );
+                moveAllDialog.setButtons( KDialog::Yes | KDialog::No );
+
+                if( moveAllDialog.exec() == KDialog::Yes )
+                {
+                    foreach( SqlPodcastChannelPtr sqlChannel, m_channels )
+                    {
+                        KUrl oldSaveLocation = sqlChannel->saveLocation();
+                        KUrl newSaveLocation = m_baseDownloadDir;
+                        newSaveLocation.addPath( oldSaveLocation.fileName() );
+                        sqlChannel->setSaveLocation( newSaveLocation );
+                        debug() << newSaveLocation.path();
+                        moveDownloadedEpisodes( sqlChannel );
+
+                        if( !QDir().rmdir( oldSaveLocation.toLocalFile() ) )
+                                debug() << "Could not remove old directory "
+                                        << oldSaveLocation.toLocalFile();
+                    }
+                }
+            }
+        }
     }
 
     delete m_providerSettingsDialog;
@@ -723,29 +767,7 @@ SqlPodcastProvider::configureChannel( Podcasts::SqlPodcastChannelPtr sqlChannel 
 
     if( oldSaveLocation != sqlChannel->saveLocation() )
     {
-        debug() << QString( "We need to move downloaded episodes of \"%1\" to %2" )
-                .arg( sqlChannel->title() )
-                .arg( sqlChannel->saveLocation().prettyUrl() );
-
-        KUrl::List filesToMove;
-        foreach( Podcasts::SqlPodcastEpisodePtr episode, sqlChannel->sqlEpisodes() )
-        {
-            if( !episode->localUrl().isEmpty() )
-            {
-                KUrl newLocation = sqlChannel->saveLocation();
-                QDir dir( newLocation.toLocalFile() );
-                dir.mkpath( "." );
-
-                newLocation.addPath( episode->localUrl().fileName() );
-                debug() << "Moving from " << episode->localUrl() << " to " << newLocation;
-                KIO::Job *moveJob = KIO::move( episode->localUrl(), newLocation,
-                                               KIO::HideProgressInfo );
-                //wait until job is finished.
-                if( KIO::NetAccess::synchronousRun( moveJob, The::mainWindow() ) )
-                    episode->setLocalUrl( newLocation );
-            }
-        }
-
+        moveDownloadedEpisodes( sqlChannel );
         if( !QDir().rmdir( oldSaveLocation.toLocalFile() ) )
             debug() << "Could not remove old directory " << oldSaveLocation.toLocalFile();
     }
@@ -917,6 +939,33 @@ SqlPodcastProvider::deleteDownloadedEpisodes( Podcasts::SqlPodcastEpisodeList &e
 }
 
 void
+SqlPodcastProvider::moveDownloadedEpisodes( Podcasts::SqlPodcastChannelPtr sqlChannel )
+{
+    debug() << QString( "We need to move downloaded episodes of \"%1\" to %2" )
+            .arg( sqlChannel->title() )
+            .arg( sqlChannel->saveLocation().prettyUrl() );
+
+    KUrl::List filesToMove;
+    foreach( Podcasts::SqlPodcastEpisodePtr episode, sqlChannel->sqlEpisodes() )
+    {
+        if( !episode->localUrl().isEmpty() )
+        {
+            KUrl newLocation = sqlChannel->saveLocation();
+            QDir dir( newLocation.toLocalFile() );
+            dir.mkpath( "." );
+
+            newLocation.addPath( episode->localUrl().fileName() );
+            debug() << "Moving from " << episode->localUrl() << " to " << newLocation;
+            KIO::Job *moveJob = KIO::move( episode->localUrl(), newLocation,
+                                           KIO::HideProgressInfo );
+            //wait until job is finished.
+            if( KIO::NetAccess::synchronousRun( moveJob, The::mainWindow() ) )
+                episode->setLocalUrl( newLocation );
+        }
+    }
+}
+
+void
 SqlPodcastProvider::slotDeleteDownloadedEpisodes()
 {
     QAction *action = qobject_cast<QAction *>( QObject::sender() );
@@ -946,9 +995,7 @@ SqlPodcastProvider::confirmUnsubscribe( Podcasts::SqlPodcastChannelPtr channel )
 
     KVBox *vbox = new KVBox( &unsubscribeDialog );
 
-    QString question( i18n( "Do you really want to unsubscribe from ") + "\"" );
-    question += channel->title();
-    question += "\"?";
+    QString question( i18n( "Do you really want to unsubscribe from \"%1\"?", channel->title() ) );
     QLabel *label = new QLabel( question, vbox );
     label->setWordWrap( true );
     label->setMaximumWidth( 400 );
@@ -1449,7 +1496,43 @@ SqlPodcastProvider::downloadResult( KJob *job )
             return;
         }
 
-        QString finalName = sqlChannel->saveLocation().toLocalFile(KUrl::AddTrailingSlash )
+        Amarok::QStringx filenameLayout = Amarok::QStringx( sqlChannel->filenameLayout() );
+        QMap<QString,QString> layoutmap;
+        QString sequenceNumber;
+
+        if( sqlEpisode->artist() )
+            layoutmap.insert( "artist", sqlEpisode->artist()->prettyName() );
+
+        layoutmap.insert( "title", sqlEpisode->title() );
+
+        if( sqlEpisode->genre() )
+            layoutmap.insert( "genre", sqlEpisode->genre()->prettyName() );
+
+        if( sqlEpisode->year() )
+            layoutmap.insert( "year", sqlEpisode->year()->prettyName() );
+
+        if( sqlEpisode->composer() )
+            layoutmap.insert( "composer", sqlEpisode->composer()->prettyName() );
+
+        layoutmap.insert( "pubdate", sqlEpisode->pubDate().toString() );
+
+        sequenceNumber.sprintf( "%.6d", sqlEpisode->sequenceNumber() );
+        layoutmap.insert( "number", sequenceNumber );
+
+        if( sqlEpisode->album() )
+            layoutmap.insert( "album", sqlEpisode->album()->prettyName() );
+
+        if( !filenameLayout.isEmpty() &&
+                Amarok::QStringx::compare( filenameLayout, "%default%", Qt::CaseInsensitive ) )
+        {
+            filenameLayout = filenameLayout.namedArgs( layoutmap );
+            //add the file extension to the filename
+            filenameLayout.append( QString( "." ) );
+            filenameLayout.append( sqlEpisode->type() );
+            download.fileName = QString( filenameLayout );
+        }
+
+        QString finalName = sqlChannel->saveLocation().toLocalFile( KUrl::AddTrailingSlash )
                             + download.fileName;
         if( tmpFile->rename( finalName ) )
         {
@@ -1506,7 +1589,7 @@ SqlPodcastProvider::createTables() const
                                 ",subscribedate " + sqlStorage->textColumnType() +
                                 ",autoscan BOOL, fetchtype INTEGER"
                                 ",haspurge BOOL, purgecount INTEGER"
-                                ",writetags BOOL ) ENGINE = MyISAM;" ) );
+                                ",writetags BOOL, filenamelayout VARCHAR(1024) ) ENGINE = MyISAM;" ) );
 
     sqlStorage->query( QString( "CREATE TABLE podcastepisodes ("
                                 "id " + sqlStorage->idType() +
@@ -1608,6 +1691,15 @@ SqlPodcastProvider::updateDatabase( int fromVersion, int toVersion )
         QString setWriteTagsQuery = QString( "UPDATE podcastchannels SET writetags=" +
                                              sqlStorage->boolTrue() +
                                              " WHERE 1;" );
+        sqlStorage->query( setWriteTagsQuery );
+    }
+
+    if(fromVersion < 5 && toVersion == 5 )
+    {
+        QString updateChannelQuery = QString ( "ALTER TABLE podcastchannels"
+                                               " ADD filenamelayout VARCHAR(1024);" );
+        sqlStorage->query( updateChannelQuery );
+        QString setWriteTagsQuery = QString( "UPDATE podcastchannels SET filenamelayout='%default%'" );
         sqlStorage->query( setWriteTagsQuery );
     }
 

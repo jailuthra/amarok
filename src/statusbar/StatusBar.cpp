@@ -24,7 +24,6 @@
 #include "core/support/Debug.h"
 #include "EngineController.h"
 #include "LongMessageWidget.h"
-#include "core/meta/support/MetaUtility.h"
 #include "core/capabilities/SourceInfoCapability.h"
 #include "core/interfaces/Logger.h"
 #include "core/support/Components.h"
@@ -36,10 +35,11 @@
 #include "NetworkProgressBar.h"
 
 #include <QNetworkReply>
+#include <QLabel>
+#include <QFrame>
 #include <QVariant>
 
 #include <cmath>
-
 
 class LoggerAdaptor : public Amarok::Logger
 {
@@ -73,7 +73,8 @@ public:
         m_statusBar->longMessage( text, otherType );
     }
 
-    virtual void newProgressOperation( KJob *job, const QString &text, QObject *obj, const char *slot, Qt::ConnectionType type )
+    virtual void newProgressOperation( KJob *job, const QString &text, QObject *obj,
+                                      const char *slot, Qt::ConnectionType type )
     {
         ProgressBar *bar = m_statusBar->newProgressOperation( job, text );
         if( obj )
@@ -82,7 +83,8 @@ public:
         }
     }
 
-    virtual void newProgressOperation( QNetworkReply *reply, const QString &text, QObject *obj, const char *slot, Qt::ConnectionType type )
+    virtual void newProgressOperation( QNetworkReply *reply, const QString &text, QObject *obj,
+                                      const char *slot, Qt::ConnectionType type )
     {
         ProgressBar *bar = m_statusBar->newProgressOperation( reply, text );
         if( obj )
@@ -95,17 +97,17 @@ private:
     StatusBar *m_statusBar;
 };
 
-StatusBar* StatusBar::s_instance = 0;
+StatusBar *StatusBar::s_instance = 0;
 
 namespace The
 {
-    StatusBar* statusBar()
+    StatusBar *statusBar()
     {
         return StatusBar::instance();
     }
 }
 
-StatusBar::StatusBar( QWidget * parent )
+StatusBar::StatusBar( QWidget *parent )
         : KStatusBar( parent )
         , m_progressBar( new CompoundProgressBar( this ) )
         , m_busy( false )
@@ -113,8 +115,17 @@ StatusBar::StatusBar( QWidget * parent )
 {
     s_instance = this;
 
-    addWidget( m_progressBar, 1 );
+    m_progressArea = new QFrame( this );
+    m_progressArea->setLayout( new QVBoxLayout( m_progressArea ) );
+
+    m_progressArea->layout()->addWidget( m_progressBar );
     m_progressBar->hide();
+
+    m_messageLabel = new QLabel( m_progressBar );
+    m_messageLabel->setAlignment( Qt::AlignCenter );
+    m_messageLabel->setWordWrap( true );
+    m_progressArea->layout()->addWidget( m_messageLabel );
+    m_messageLabel->hide();
 
     connect( m_progressBar, SIGNAL( allDone() ), this, SLOT( hideProgress() ) );
 
@@ -126,86 +137,36 @@ StatusBar::StatusBar( QWidget * parent )
     m_shortMessageTimer->setSingleShot( true );
     connect( m_shortMessageTimer, SIGNAL( timeout() ), this, SLOT( nextShortMessage() ) );
 
-    m_nowPlayingWidget = new KHBox( 0 );
-    m_nowPlayingWidget->setSpacing( 4 );
-
-    m_nowPlayingLabel = new KSqueezedTextLabel( m_nowPlayingWidget );
-    m_nowPlayingLabel->setTextElideMode( Qt::ElideRight );
-    m_nowPlayingLabel->setAlignment( Qt::AlignRight | Qt::AlignVCenter );
-
-    m_nowPlayingEmblem = new QLabel( m_nowPlayingWidget );
-    m_nowPlayingEmblem->setFixedSize( 16, 16 );
-
-    m_separator = new QFrame( m_nowPlayingWidget );
-    m_separator->setFrameShape( QFrame::VLine );
-
-    m_playlistLengthLabel = new QLabel( m_nowPlayingWidget);
-    m_playlistLengthLabel->setAlignment( Qt::AlignRight | Qt::AlignVCenter );
-
-    QWidget * spacer = new QWidget( m_nowPlayingWidget );
-    spacer->setFixedWidth( 3 );
-
-    addPermanentWidget( m_nowPlayingWidget );
-
     qRegisterMetaType<MessageType>( "MessageType" );
-    connect( this, SIGNAL( signalLongMessage( const QString &, MessageType ) ), SLOT( slotLongMessage( const QString &, MessageType ) ), Qt::QueuedConnection );
-
-    connect( Playlist::ModelStack::instance()->bottom(), SIGNAL( dataChanged( const QModelIndex&, const QModelIndex& ) ), this, SLOT( updateTotalPlaylistLength() ) );
-    // Ignore The::playlist() layoutChanged: rows moving around does not change the total playlist length.
-    connect( Playlist::ModelStack::instance()->bottom(), SIGNAL( modelReset() ), this, SLOT( updateTotalPlaylistLength() ) );
-    connect( Playlist::ModelStack::instance()->bottom(), SIGNAL( rowsInserted( const QModelIndex&, int, int ) ), this, SLOT( updateTotalPlaylistLength() ) );
-    connect( Playlist::ModelStack::instance()->bottom(), SIGNAL( rowsRemoved( const QModelIndex&, int, int ) ), this, SLOT( updateTotalPlaylistLength() ) );
-
-    updateTotalPlaylistLength();
-
-    EngineController *engine = The::engineController();
-
-    connect( engine, SIGNAL( trackMetadataChanged( Meta::TrackPtr ) ),
-             this, SLOT( trackMetadataChanged( Meta::TrackPtr ) ) );
-    connect( engine, SIGNAL( stopped( qint64, qint64 ) ),
-             this, SLOT( stopped() ) );
-    connect( engine, SIGNAL( paused() ),
-             this, SLOT( paused() ) );
-    connect( engine, SIGNAL( trackPlaying( Meta::TrackPtr ) ),
-             this, SLOT( trackPlaying( Meta::TrackPtr ) ) );
+    connect( this, SIGNAL( signalLongMessage( const QString &, MessageType ) ),
+             SLOT( slotLongMessage( const QString &, MessageType ) ), Qt::QueuedConnection );
 
     Amarok::Logger *logger = Amarok::Components::logger();
     ProxyLogger *proxy = qobject_cast<ProxyLogger*>( logger );
     if( proxy )
-    {
         proxy->setLogger( new LoggerAdaptor( this ) );
-    }
     else
-    {
         warning() << "Was not able to register statusbar as logger";
-    }
-
-    if( AmarokConfig::resumePlayback() )
-        m_currentTrack = The::engineController()->currentTrack();
 }
 
 
 StatusBar::~StatusBar()
 {
-    DEBUG_BLOCK
-
     delete m_progressBar;
     m_progressBar = 0;
 
     s_instance = 0;
 }
 
-ProgressBar * StatusBar::newProgressOperation( QObject * owner, const QString & description )
+ProgressBar *StatusBar::newProgressOperation( QObject *owner, const QString & description )
 {
     //clear any short message currently being displayed and stop timer if running...
     clearMessage();
     m_shortMessageTimer->stop();
 
-    //also hide the now playing stuff:
-    m_nowPlayingWidget->hide();
-    ProgressBar * newBar = new ProgressBar( 0 );
+    ProgressBar *newBar = new ProgressBar( 0 );
     newBar->setDescription( description );
-    connect( owner, SIGNAL(destroyed(QObject*)), this, SLOT(endProgressOperation(QObject*)) );
+    connect( owner, SIGNAL(destroyed( QObject * )), SLOT(endProgressOperation( QObject * )) );
     m_progressBar->addProgressBar( newBar, owner );
     m_progressBar->show();
     m_busy = true;
@@ -213,17 +174,15 @@ ProgressBar * StatusBar::newProgressOperation( QObject * owner, const QString & 
     return newBar;
 }
 
-ProgressBar * StatusBar::newProgressOperation( KJob * job, const QString & description )
+ProgressBar *StatusBar::newProgressOperation( KJob *job, const QString &description )
 {
     //clear any short message currently being displayed and stop timer if running...
     clearMessage();
     m_shortMessageTimer->stop();
 
-    //also hide the now playing stuff:
-    m_nowPlayingWidget->hide();
-    KJobProgressBar * newBar = new KJobProgressBar( 0, job );
+    KJobProgressBar *newBar = new KJobProgressBar( 0, job );
     newBar->setDescription( description );
-    connect( job, SIGNAL(destroyed(QObject*)), this, SLOT(endProgressOperation(QObject*)) );
+    connect( job, SIGNAL(destroyed( QObject * )), this, SLOT(endProgressOperation( QObject * )) );
     m_progressBar->addProgressBar( newBar, job );
     m_progressBar->show();
     m_busy = true;
@@ -231,18 +190,16 @@ ProgressBar * StatusBar::newProgressOperation( KJob * job, const QString & descr
     return newBar;
 }
 
-ProgressBar *StatusBar::newProgressOperation( QNetworkReply* reply, const QString & description )
+ProgressBar *StatusBar::newProgressOperation( QNetworkReply *reply, const QString &description )
 {
     //clear any short message currently being displayed and stop timer if running...
     clearMessage();
     m_shortMessageTimer->stop();
 
-    //also hide the now playing stuff:
-    m_nowPlayingWidget->hide();
-    NetworkProgressBar * newBar = new NetworkProgressBar( 0, reply );
+    NetworkProgressBar *newBar = new NetworkProgressBar( 0, reply );
     newBar->setDescription( description );
     newBar->setAbortSlot( reply, SLOT(deleteLater()) );
-    connect( reply, SIGNAL(destroyed(QObject*)), this, SLOT(endProgressOperation(QObject*)) );
+    connect( reply, SIGNAL(destroyed( QObject * )), SLOT(endProgressOperation( QObject * )) );
     m_progressBar->addProgressBar( newBar, reply );
     m_progressBar->show();
     m_busy = true;
@@ -250,12 +207,12 @@ ProgressBar *StatusBar::newProgressOperation( QNetworkReply* reply, const QStrin
     return newBar;
 }
 
-void StatusBar::shortMessage( const QString & text )
+void StatusBar::shortMessage( const QString &text )
 {
-    if ( !m_busy )
+    if( !m_busy )
     {
         //not busy, so show right away
-        showMessage( text );
+        showMessageInProgressArea( text );
         m_shortMessageTimer->start( SHORT_MESSAGE_DURATION );
     }
     else
@@ -276,87 +233,30 @@ void StatusBar::hideProgress()
 
 void StatusBar::nextShortMessage()
 {
-    if ( m_shortMessageQue.count() > 0 )
+    if( m_shortMessageQue.count() > 0 )
     {
         m_busy = true;
-        showMessage( m_shortMessageQue.takeFirst() );
+        showMessageInProgressArea( m_shortMessageQue.takeFirst() );
         m_shortMessageTimer->start( SHORT_MESSAGE_DURATION );
     }
     else
     {
-        clearMessage();
+        clearMessageInProgressArea();
         m_busy = false;
-        m_nowPlayingWidget->show();
     }
 }
 
-void StatusBar::trackMetadataChanged( Meta::TrackPtr track )
+void StatusBar::longMessage( const QString &text, MessageType type )
 {
-    if( track )
-        updateInfo( track );
-}
-
-void
-StatusBar::stopped()
-{
-    m_nowPlayingLabel->setText( QString() );
-    m_nowPlayingEmblem->hide();
-}
-
-void
-StatusBar::paused()
-{
-    m_nowPlayingLabel->setText( i18n( "Amarok is paused" ) );
-    m_nowPlayingEmblem->hide();
-}
-
-void
-StatusBar::trackPlaying( Meta::TrackPtr track )
-{
-    m_currentTrack = track;
-
-    if( m_currentTrack )
-        updateInfo( m_currentTrack );
-}
-
-void
-StatusBar::updateInfo( Meta::TrackPtr track )
-{
-    // Check if we have any source info:
-    Capabilities::SourceInfoCapability *sic = track->create<Capabilities::SourceInfoCapability>();
-    if ( sic )
-    {
-        if ( !sic->sourceName().isEmpty() )
-        {
-            m_nowPlayingEmblem->setPixmap( sic->emblem() );
-            m_nowPlayingEmblem->show();
-        }
-        else
-            m_nowPlayingEmblem->hide();
-        delete sic;
-    }
-    else
-        m_nowPlayingEmblem->hide();
-
-    m_nowPlayingLabel->setText( i18n( "Playing: %1", The::engineController()->prettyNowPlaying() ) );
-}
-
-void StatusBar::longMessage( const QString & text, MessageType type )
-{
-    DEBUG_BLOCK
-
     // The purpose of this emit is to make the operation thread safe. If this
     // method is called from a non-GUI thread, the "emit" relays it over the
     // event loop to the GUI thread, so that we can safely create widgets.
-
     emit signalLongMessage( text, type );
 }
 
-void StatusBar::slotLongMessage( const QString & text, MessageType type ) //SLOT
+void StatusBar::slotLongMessage( const QString &text, MessageType type ) //SLOT
 {
-    DEBUG_BLOCK
-
-    LongMessageWidget * message = new LongMessageWidget( this, text, type );
+    LongMessageWidget *message = new LongMessageWidget( this, text, type );
     connect( message, SIGNAL( closed() ), this, SLOT( hideLongMessage() ) );
 }
 
@@ -366,69 +266,18 @@ void StatusBar::hideLongMessage()
 }
 
 void
-StatusBar::updateTotalPlaylistLength() //SLOT
+StatusBar::showMessageInProgressArea( const QString &message )
 {
-    DEBUG_BLOCK
+    m_busy = true;
+    m_messageLabel->setText( message );
+    m_messageLabel->show();
+}
 
-    const quint64 totalLength = The::playlist()->totalLength();
-    const int trackCount = The::playlist()->qaim()->rowCount();
-
-    if( totalLength > 0 && trackCount > 0 )
-    {
-        const QString prettyTotalLength = Meta::msToPrettyTime( totalLength );
-        m_playlistLengthLabel->setText( i18ncp( "%1 is number of tracks, %2 is time",
-                                                "%1 track (%2)", "%1 tracks (%2)",
-                                                trackCount, prettyTotalLength ) );
-        m_playlistLengthLabel->show();
-
-        quint64 queuedTotalLength( 0 );
-        quint64 queuedTotalSize( 0 );
-        int queuedCount( 0 );
-
-        for( int i = 0; i < trackCount; ++i )
-        {
-            if( The::playlist()->queuePositionOfRow( i ) != 0 )
-            {
-                queuedTotalLength += The::playlist()->trackAt( i )->length();
-                queuedTotalSize += The::playlist()->trackAt( i )->filesize();
-                ++queuedCount;
-            }
-        }
-
-        const quint64 totalSize = The::playlist()->totalSize();
-        const QString prettyTotalSize = Meta::prettyFilesize( totalSize );
-        const QString prettyQueuedTotalLength = Meta::msToPrettyTime( queuedTotalLength );
-        const QString prettyQueuedTotalSize   = Meta::prettyFilesize( queuedTotalSize );
-
-        QString tooltipLabel;
-        if( queuedCount > 0 && queuedTotalLength > 0 )
-        {
-            tooltipLabel = i18n( "Total playlist size: %1", prettyTotalSize )       + '\n'
-                         + i18n( "Queue size: %1",          prettyQueuedTotalSize ) + '\n'
-                         + i18n( "Queue length: %1",        prettyQueuedTotalLength );
-        }
-        else
-        {
-            tooltipLabel = i18n( "Total playlist size: %1", prettyTotalSize );
-        }
-
-        m_playlistLengthLabel->setToolTip( tooltipLabel );
-        m_separator->show();
-    }
-    else if( ( totalLength == 0 ) && ( trackCount > 0 ) )
-    {
-        m_playlistLengthLabel->setText( i18ncp( "%1 is number of tracks", "%1 track", "%1 tracks", trackCount ) );
-        m_playlistLengthLabel->show();
-        m_playlistLengthLabel->setToolTip( 0 );
-        m_separator->show();
-    }
-    else // Total Length will not be > 0 if trackCount is 0, so we can ignore it
-    {
-        // TotalLength = 0 and trackCount = 0;
-        m_playlistLengthLabel->hide();
-        m_separator->hide();
-    }
+void
+StatusBar::clearMessageInProgressArea()
+{
+    m_busy = false;
+    m_messageLabel->hide();
 }
 
 #include "StatusBar.moc"
-

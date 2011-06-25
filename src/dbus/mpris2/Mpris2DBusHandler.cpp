@@ -99,15 +99,14 @@ namespace Amarok
 
         EngineController *engine = The::engineController();
 
-        connect( engine, SIGNAL( stopped( qint64, qint64 ) ),
-                 this, SLOT( updatePlaybackStatusProperty() ) );
-        connect( engine, SIGNAL( paused() ),
-                 this, SLOT( updatePlaybackStatusProperty() ) );
-        connect( engine, SIGNAL( trackPlaying( Meta::TrackPtr ) ),
+        connect( engine, SIGNAL( playbackStateChanged() ),
                  this, SLOT( updatePlaybackStatusProperty() ) );
 
         connect( engine, SIGNAL( trackChanged( Meta::TrackPtr ) ),
                  this, SLOT( updatePlaylistProperties() ) );
+
+        connect( engine, SIGNAL( trackChanged( Meta::TrackPtr ) ),
+                 this, SLOT( updateTrackProperties() ) );
 
         connect( engine, SIGNAL( trackPositionChanged( qint64, bool ) ),
                  this, SLOT( trackPositionChanged( qint64, bool ) ) );
@@ -158,7 +157,11 @@ namespace Amarok
 
     QString Mpris2DBusHandler::DesktopEntry() const
     {
-        return "amarok";
+        // Amarok desktop file is installed in $prefix/share/applications/kde4/
+        // rather than in $prefix/share/applications. The standard way to
+        // represent this dir is with a "kde4-" prefix. See:
+        // http://standards.freedesktop.org/menu-spec/1.0/go01.html#term-desktop-file-id
+        return "kde4-amarok";
     }
 
     QStringList Mpris2DBusHandler::SupportedUriSchemes() const
@@ -350,6 +353,7 @@ namespace Amarok
         switch( AmarokConfig::trackProgression() )
         {
             case AmarokConfig::EnumTrackProgression::Normal:
+            case AmarokConfig::EnumTrackProgression::OnlyQueue:
             case AmarokConfig::EnumTrackProgression::RandomTrack:
             case AmarokConfig::EnumTrackProgression::RandomAlbum:
                 loopStatus = "None";

@@ -15,6 +15,7 @@
  ****************************************************************************************/
 
 #include "core/meta/support/MetaConstants.h"
+#include "shared/FileType.h"
 #include <klocalizedstring.h>
 
 QString Meta::nameForField( qint64 field )
@@ -101,7 +102,7 @@ QString Meta::i18nForField( qint64 field )
     switch( field )
     {
     case 0:                    return i18nc("The field name in case nothing specific is selected e.g. in the automatic playlist generator", "anything");
-    case Meta::valUrl:         return i18nc( "The name of the file this track is stored in", "filename" );
+    case Meta::valUrl:         return i18nc( "The name of the file this track is stored in", "File Name" );
     case Meta::valTitle:       return i18n("Title");
     case Meta::valArtist:      return i18n("Artist Name");
     case Meta::valAlbum:       return i18n("Album Name");
@@ -125,10 +126,10 @@ QString Meta::i18nForField( qint64 field )
     case Meta::valPlaycount:   return i18n("Playcount");
     case Meta::valUniqueId:    return i18n("Unique Id");
 
-    case Meta::valTrackGain:   return i18n("track gain");
-    case Meta::valTrackGainPeak:   return i18n("track gain peak");
-    case Meta::valAlbumGain:   return i18n("album gain");
-    case Meta::valAlbumGainPeak:   return i18n("album gain peak");
+    case Meta::valTrackGain:   return i18n("Track Gain");
+    case Meta::valTrackGainPeak:   return i18n("Track Gain Peak");
+    case Meta::valAlbumGain:   return i18n("Album Gain");
+    case Meta::valAlbumGainPeak:   return i18n("Album Gain Peak");
 
     case Meta::valAlbumArtist: return i18n("Album Artist Name");
     case Meta::valLabel:       return i18n("Label");
@@ -294,6 +295,9 @@ QString Meta::iconForField( qint64 field )
 
 QVariant Meta::valueForField( qint64 field, Meta::TrackPtr track )
 {
+    if( !track )
+        return QVariant();
+
     switch( field )
     {
     case 0:
@@ -332,7 +336,8 @@ QVariant Meta::valueForField( qint64 field, Meta::TrackPtr track )
     case Meta::valBitrate:     return track->bitrate();
     case Meta::valSamplerate:  return track->sampleRate();
     case Meta::valFilesize:    return track->filesize();
-    case Meta::valFormat:      return track->type(); // this is a string
+    case Meta::valFormat:      return int(Amarok::FileTypeSupport::fileType(track->type()));
+
     case Meta::valCreateDate:  return track->createDate();
     case Meta::valScore:       return track->score();
     case Meta::valRating:      return track->rating();
@@ -347,7 +352,7 @@ QVariant Meta::valueForField( qint64 field, Meta::TrackPtr track )
     case Meta::valAlbumGain:   return "album gain";
     case Meta::valAlbumGainPeak:   return "album gain peak";
 
-    case Meta::valAlbumArtist: return track->album() ?
+    case Meta::valAlbumArtist: return (track->album() && track->album()->albumArtist()) ?
                                QVariant(track->album()->albumArtist()->name()) : QVariant();
     case Meta::valLabel:
       {

@@ -63,13 +63,20 @@ VorbisCommentTagHelper::tags() const
                 if( ( disc = splitDiscNr( value ).first ) )
                     data.insert( field, disc );
             }
+            else if( field == Meta::valRating )
+                data.insert( field, qRound( value.toFloat() * 10.0 ) );
+            else if( field == Meta::valScore )
+                data.insert( field, value.toFloat() * 100.0 );
             else
                 data.insert( field, value );
         }
         else if( it->first == uidFieldName( UIDAFT ) && isValidUID( value, UIDAFT ) )
             data.insert( Meta::valUniqueId, value );
         else if( it->first == uidFieldName( UIDMusicBrainz ) && isValidUID( value, UIDMusicBrainz ) )
-            data.insert( Meta::valUniqueId, value.prepend( "mb-" ) );
+        {
+            if( !data.contains( Meta::valUniqueId ) ) // we prefere AFT uids
+                data.insert( Meta::valUniqueId, value.prepend( "mb-" ) );
+        }
     }
 
     return data;

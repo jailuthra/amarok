@@ -31,6 +31,7 @@
 
 #include <KConfigDialog>
 #include <KTextBrowser>
+#include <KStandardDirs>
 
 #include <Plasma/IconWidget>
 #include <Plasma/TextBrowser>
@@ -50,6 +51,7 @@ public:
     LyricsAppletPrivate( LyricsApplet *parent )
         : saveIcon( 0 )
         , editIcon( 0 )
+        , autoScrollIcon( 0 )
         , reloadIcon( 0 )
         , closeIcon( 0 )
         , settingsIcon( 0 )
@@ -60,6 +62,9 @@ public:
         , hasLyrics( false )
         , showBrowser( false )
         , showSuggestions( false )
+        , isShowingUnsavedWarning( false )
+        , userAutoScrollOffset( 0 )
+        , oldSliderPosition( 0 )
         , q_ptr( parent ) {}
     ~LyricsAppletPrivate() {}
 
@@ -77,15 +82,18 @@ public:
     void _changeLyricsFont();
     void _closeLyrics();
     void _saveLyrics();
+    void _toggleAutoScroll();
     void _suggestionChosen( const LyricsSuggestion &suggestion );
     void _unsetCursor();
     void _trackDataChanged( Meta::TrackPtr );
+    void _trackPositionChanged( qint64 position, bool userSeek );
 
     void _lyricsChangedMessageButtonPressed( const Plasma::MessageButton button );
     void _refetchMessageButtonPressed( const Plasma::MessageButton button );
 
     Plasma::IconWidget *saveIcon;
     Plasma::IconWidget *editIcon;
+    Plasma::IconWidget *autoScrollIcon;
     Plasma::IconWidget *reloadIcon;
     Plasma::IconWidget *closeIcon;
     Plasma::IconWidget *settingsIcon;
@@ -103,7 +111,11 @@ public:
 
     bool hasLyrics;
     bool showBrowser;
+    bool autoScroll;
     bool showSuggestions;
+    bool isShowingUnsavedWarning;
+    int  userAutoScrollOffset;
+    int  oldSliderPosition;
 
 private:
     LyricsApplet *const q_ptr;
@@ -122,8 +134,9 @@ LyricsAppletPrivate::determineActionIconsState()
     bool isEditing = !browser->isReadOnly();
 
     editIcon->action()->setEnabled( !isEditing );
-    closeIcon->action()->setEnabled( showBrowser & isEditing );
-    saveIcon->action()->setEnabled( showBrowser & isEditing );
+    closeIcon->action()->setEnabled( isEditing );
+    saveIcon->action()->setEnabled( isEditing );
+    autoScrollIcon->action()->setEnabled( !isEditing );
     reloadIcon->action()->setEnabled( !isEditing );
 }
 
@@ -202,6 +215,8 @@ LyricsAppletPrivate::showUnsavedChangesWarning( Meta::TrackPtr newTrack )
     // Since the applet is now blocked the user can not enable this again.
     // Thus we can make sure that we won't overwrite modifiedTrack.
     setEditing( false );
+
+    isShowingUnsavedWarning = false;
 }
 
 void LyricsAppletPrivate::_refetchMessageButtonPressed( const Plasma::MessageButton button )
@@ -257,6 +272,10 @@ LyricsAppletPrivate::_editLyrics()
     if( q->isCollapsed() )
         q->setCollapseOff();
 
+    // disable autoscroll when starting editing
+    if (autoScroll)
+        _toggleAutoScroll();
+
     if( !browser->isVisible() )
     {
         browser->show();
@@ -281,11 +300,8 @@ LyricsAppletPrivate::_closeLyrics()
         QScrollBar *vbar = browser->nativeWidget()->verticalScrollBar();
         int savedPosition = vbar->isVisible() ? vbar->value() : vbar->minimum();
 
-        browser->setLyrics( currentTrack->cachedLyrics() );
+        showLyrics( currentTrack->cachedLyrics() );
         vbar->setSliderPosition( savedPosition );
-
-        showSuggestions = false;
-        showBrowser = true;
         // emit sizeHintChanged(Qt::MaximumSize);
     }
     else
@@ -322,6 +338,18 @@ LyricsAppletPrivate::_saveLyrics()
 }
 
 void
+LyricsAppletPrivate::_toggleAutoScroll()
+{
+    Q_Q( LyricsApplet );
+    Plasma::IconWidget *icon = qobject_cast<Plasma::IconWidget*>(q->sender());
+    DEBUG_ASSERT( icon, return ) // that should not happen
+
+    autoScroll = !autoScroll;
+    icon->setPressed( autoScroll );
+    Amarok::config( "Lyrics Applet" ).writeEntry( "AutoScroll", autoScroll );
+}
+
+void
 LyricsAppletPrivate::_suggestionChosen( const LyricsSuggestion &suggestion )
 {
     DEBUG_BLOCK
@@ -351,20 +379,39 @@ LyricsAppletPrivate::_trackDataChanged( Meta::TrackPtr track )
 {
     DEBUG_BLOCK
 
+    userAutoScrollOffset = 0;
+    oldSliderPosition = 0;
+
     // Check if we previously had a track.
     // If the lyrics currently shown in the browser (which
     // additionally is in edit mode) are different from the
     // lyrics of the track we have to show a warning.
-    if( currentTrack &&
-        currentTrack->cachedLyrics() != browser->lyrics() &&
-        !browser->isReadOnly() )
+    if( !isShowingUnsavedWarning && currentTrack &&
+        (currentTrack->cachedLyrics() != browser->lyrics()) &&
+        !browser->isReadOnly()  )
     {
+        isShowingUnsavedWarning = true;
         showUnsavedChangesWarning( track );
     }
 
     // Update the current track.
     currentTrack = track;
 }
+
+void
+LyricsAppletPrivate::_trackPositionChanged( qint64 position, bool userSeek )
+{
+    Q_UNUSED( userSeek );
+    EngineController* engine = The::engineController();
+    QScrollBar *vbar = browser->nativeWidget()->verticalScrollBar();
+    if( engine->trackPositionMs() != 0 &&  !vbar->isSliderDown() && autoScroll )
+    {
+        userAutoScrollOffset = userAutoScrollOffset + vbar->value() - oldSliderPosition;
+        oldSliderPosition = (int)((((double)position/(double)engine->trackLength()))*vbar->maximum()) + userAutoScrollOffset;
+        vbar->setSliderPosition( oldSliderPosition );
+    }
+}
+
 
 LyricsApplet::LyricsApplet( QObject* parent, const QVariantList& args )
     : Context::Applet( parent, args )
@@ -419,6 +466,13 @@ LyricsApplet::init()
     d->closeIcon = addLeftHeaderAction( closeAction );
     connect( d->closeIcon, SIGNAL(clicked()), this, SLOT(_closeLyrics()) );
 
+    QAction* autoScrollAction = new QAction( this );
+    autoScrollAction->setIcon( KIcon( QPixmap( KStandardDirs::locate( "data", "amarok/images/playlist-sorting-16.png" ) ) ) );
+    autoScrollAction->setEnabled( true );
+    autoScrollAction->setText( i18n( "Scroll automatically" ) );
+    d->autoScrollIcon = addRightHeaderAction( autoScrollAction );
+    connect( d->autoScrollIcon, SIGNAL( clicked() ), this, SLOT( _toggleAutoScroll() ) );
+
     QAction* reloadAction = new QAction( this );
     reloadAction->setIcon( KIcon( "view-refresh" ) );
     reloadAction->setEnabled( true );
@@ -449,6 +503,8 @@ LyricsApplet::init()
     const KConfigGroup &lyricsConfig = Amarok::config("Lyrics Applet");
     d->alignment = Qt::Alignment( lyricsConfig.readEntry("Alignment", int(Qt::AlignLeft)) );
     d->browser->setAlignment( d->alignment );
+    d->autoScroll = lyricsConfig.readEntry( "AutoScroll", true );
+    d->autoScrollIcon->setPressed( d->autoScroll );
 
     QFont font;
     if( font.fromString( lyricsConfig.readEntry("Font", QString()) ) )
@@ -458,8 +514,14 @@ LyricsApplet::init()
 
     connect( engine, SIGNAL( trackChanged( Meta::TrackPtr ) ), this, SLOT( _trackDataChanged( Meta::TrackPtr ) ) );
     connect( engine, SIGNAL( trackMetadataChanged( Meta::TrackPtr ) ), this, SLOT( _trackDataChanged( Meta::TrackPtr ) ) );
+    connect( engine, SIGNAL( trackPositionChanged( qint64 , bool) ), this, SLOT( _trackPositionChanged(qint64, bool) ) );
     connect( d->suggestView, SIGNAL(selected(LyricsSuggestion)), SLOT(_suggestionChosen(LyricsSuggestion)) );
     connect( dataEngine("amarok-lyrics"), SIGNAL(sourceAdded(QString)), this, SLOT(connectSource(QString)) );
+
+    // This is needed as a track might be playing when the lyrics applet
+    // is added to the ContextView.
+    d->_trackDataChanged( engine->currentTrack() );
+    d->_trackPositionChanged( engine->trackPositionMs(), false );
 
     d->determineActionIconsState();
     connectSource( "lyrics" );
@@ -524,24 +586,16 @@ LyricsApplet::dataUpdated( const QString& name, const Plasma::DataEngine::Data& 
         d->showSuggested( suggested );
         setCollapseOff();
     }
-    else if( data.contains( "html" ) )
+    else if( data.contains( "html" ) || data.contains( "lyrics" ) )
     {
-        d->hasLyrics = true;
-        d->browser->setRichText( true );
-        titleText = QString( "%1: %2" )
-            .arg( i18n( "Lyrics" ) )
-            .arg( data[ "html" ].toString().section( "<title>", 1, 1 ).section( "</title>", 0, 0 ) );
-        d->showLyrics( data["html"].toString() );
-        setCollapseOff();
-    }
-    else if( data.contains( "lyrics" ) )
-    {
-        QVariant var = data.value( QLatin1String("lyrics") );
+        const bool isHtml = data.contains( QLatin1String("html") );
+        const QString key = isHtml ? QLatin1String("html") : QLatin1String("lyrics");
+        const QVariant var = data.value( key );
         if( var.canConvert<LyricsData>() )
         {
-            LyricsData lyrics = var.value<LyricsData>();
             d->hasLyrics = true;
-            d->browser->setRichText( false );
+            d->browser->setRichText( isHtml );
+            LyricsData lyrics = var.value<LyricsData>();
             QString trimmed = lyrics.text.trimmed();
 
             if( trimmed != d->browser->lyrics() )
@@ -554,9 +608,7 @@ LyricsApplet::dataUpdated( const QString& name, const Plasma::DataEngine::Data& 
                 d->showBrowser = true;
             }
 
-            titleText = QString( "%1: %2 - %3" )
-                .arg( i18n( "Lyrics" ) )
-                .arg( lyrics.artist ).arg( lyrics.title );
+            titleText = i18nc( "Lyrics: <artist> - <title>", "Lyrics: %1 - %2", lyrics.artist, lyrics.title );
             setCollapseOff();
         }
     }

@@ -81,7 +81,7 @@ ScanManager::ScanManager( Collections::DatabaseCollection *collection, QObject *
 
 ScanManager::~ScanManager()
 {
-    abort();
+    blockScan();
     // actually we should wait for the abort to be finished.
     delete m_importRequested;
 }
@@ -175,8 +175,11 @@ ScanManager::addDirToList( const QString &directory )
     QMutexLocker locker( &m_mutex );
     debug() << "addDirToList for"<<directory;
 
-    if( directory.isEmpty() )
+    if( directory.isEmpty() ) {
+        DEBUG_ASSERT(m_collection, return)
+        DEBUG_ASSERT(m_collection->mountPointManager(), return)
         m_scanDirsRequested.unite( m_collection->mountPointManager()->collectionFolders().toSet() );
+    }
     else
     {
         if( m_collection->isDirInCollection( directory ) )
@@ -549,10 +552,10 @@ ScannerJob::run()
                 {
                     CollectionScanner::Directory *dir = new CollectionScanner::Directory( &m_reader );
                     processor->addDirectory( dir );
-                    debug() << "ScannerJob: run:"<<count<<"current path"<<dir->rpath();
+                    // debug() << "ScannerJob: run:"<<count<<"current path"<<dir->rpath();
                     count++;
 
-                    emit message( i18n("Got directory \"%1\" from scanner.").arg( dir->rpath() ) );
+                    emit message( i18n( "Got directory \"%1\" from scanner.", dir->rpath() ) );
                     emit step( this );
                 }
                 else
@@ -593,7 +596,7 @@ ScannerJob::run()
     else if( !finished && m_reader.hasError() )
     {
         warning() << "Aborting ScanManager ScannerJob with error"<<m_reader.errorString();
-        emit failed( i18n("Aborting scanner with error: %1").arg( m_reader.errorString() ) );
+        emit failed( i18n( "Aborting scanner with error: %1", m_reader.errorString() ) );
         processor->rollback();
     }
     else
@@ -646,7 +649,6 @@ ScannerJob::directoryProcessed()
 bool
 ScannerJob::createScannerProcess( bool restart )
 {
-    DEBUG_BLOCK;
     Q_ASSERT( !m_scanner );
 
     if( m_abortRequested )
@@ -687,7 +689,6 @@ ScannerJob::createScannerProcess( bool restart )
 
     *m_scanner << "--batch" << m_batchfilePath;
 
-    debug() << "starting scanner now:";
     m_scanner->start();
     return m_scanner->waitForStarted( -1 );
 }
@@ -696,8 +697,6 @@ ScannerJob::createScannerProcess( bool restart )
 bool
 ScannerJob::tryRestart()
 {
-    DEBUG_BLOCK;
-
     if( m_scanner->exitStatus() == QProcess::NormalExit )
         return false; // all shiny. no need to restart
 
@@ -719,8 +718,6 @@ ScannerJob::tryRestart()
 void
 ScannerJob::getScannerOutput()
 {
-    DEBUG_BLOCK;
-
     if( !m_scanner->waitForReadyRead( -1 ) )
         return;
     m_incompleteTagBuffer += m_scanner->readAll();
@@ -751,7 +748,7 @@ ScannerJob::getKnownDirs()
 {
     QList< QPair<QString, uint> > result;
 
-    // -- get all mount points
+    // -- get all (mounted) mount points
     QList<int> idlist = m_collection->mountPointManager()->getMountedDeviceIds();
 
     //expects a stringlist in order deviceid, dir, changedate

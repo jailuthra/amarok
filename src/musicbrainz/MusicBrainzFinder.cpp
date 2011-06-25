@@ -231,7 +231,8 @@ MusicBrainzFinder::parsingDone( ThreadWeaver::Job *_parser )
                         maxPossibleScore += 12;
                     }
 
-                    if( release.isEmpty() && track.contains( MusicBrainz::RELEASELIST) )
+                    if( release.isEmpty() && track.contains( MusicBrainz::RELEASELIST ) &&
+                        !track.value( MusicBrainz::RELEASELIST ).toStringList().isEmpty() )
                         release = track.value( MusicBrainz::RELEASELIST ).toStringList().first();
 
                     if( !release.isEmpty() )
@@ -435,12 +436,16 @@ MusicBrainzFinder::compileRequest( const Meta::TrackPtr &track )
     QString query = QString( "dur:(%1)" ).arg( track->length() );
     QVariantMap metadata = guessMetadata( track );
 
+    QRegExp escape( "([~!\\^&*()\\-+\\[\\]{}\\\\:\"?])" );
+    QString replacement( "\\\\1" );
+#define VALUE(s) metadata.value( s ).toString().replace( escape, replacement )
     if( metadata.contains( Meta::Field::TITLE ) )
-        query += QString( " track:(%1)" ).arg( metadata.value( Meta::Field::TITLE ).toString() );
+        query += QString( " track:(%1)" ).arg( VALUE( Meta::Field::TITLE ) );
     if( metadata.contains( Meta::Field::ARTIST ) )
-        query += QString( " artist:(%1)" ).arg( metadata.value( Meta::Field::ARTIST ).toString() );
+        query += QString( " artist:(%1)" ).arg( VALUE( Meta::Field::ARTIST ) );
     if( metadata.contains( Meta::Field::ALBUM ) )
-        query += QString ( " release:(%1)" ).arg( metadata.value( Meta::Field::ALBUM ).toString() );
+        query += QString ( " release:(%1)" ).arg( VALUE( Meta::Field::ALBUM ) );
+#undef VALUE
 
     m_parsedMetaData.insert( track, metadata );
 

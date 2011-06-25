@@ -3,7 +3,75 @@ Amarok ChangeLog
 (C) 2002-2011 the Amarok authors.
 
 
+VERSION 2.4.2-Beta 1
+  FEATURES:
+    * Enable drag and drop on collections to copy/move within Local Music and
+      directly from the playlist. (BR 223400)
+    * Added KNotify scripting interface. (BR 260750)
+    * Make podcast episodes download filename configurable. Patch by
+      Sandeep Raghuraman. (BR 155075)
+    * Automatic scrolling in lyrics applet (Thanks to Jan Gerrit Marker)
+    * Option to scrobble composer as artist to Last.fm (Thanks to Nicholas Wilson)
+    * Option to hide the OSD if another window is taking the full screen
+
+  CHANGES:
+    * Moved the queue-editor action to the main menu under playlist to save space.
+      Queue editor now has a shortcut: Meta+U.
+    * Removed the redo action from the playlist toolbar to make it less wide.
+    * Made some playlist toolbar actions collapse into a menu button for use on
+      small screens.
+    * Removed the statusbar. Moved progress messages to the Media Sources dock.
+    * Removed the preview button and checkbox from the organize collection dialog.
+    * General user interface cleanup (addition of browser widget backgrounds,
+      etc.)
+    * Removed the add button in the context toolbar. Applet explorer is opened on config.
+    * Easier to understand Dynamic playlists
+    * Made Amarok depend ffmpeg-0.6 or newer.
+    * Use KImageCache if possible (kdelibs 4.5.0 and later), which should
+      reduce the number of cache-related crashes.
+
+  BUGFIXES:
+    * Fix finalization of track copy process to media device collections. (BR238912)
+      Patch by Tommaso Falchi Delitala.
+    * Fixed crash on MusicBrainz search. (BR 274956)
+    * Avoid crash in ContextView when accessing Plasma::Applet::view().
+      (BR 258741)
+    * Fixed playlist tooltip getting too tall for multiline comments. (BR 256038)
+    * Made equalizer keywords (dB,kHz,...) translatable. (BR 263572)
+    * Made equalizer preset names translatable. (BR 263596)
+    * Fixed runtime error reporting of scripts. (BR 207409)
+    * Fixed "Happy" moodbar theme. (BR 264432)
+    * Fixed crash for invalid scripts trying to be stopped by the manager.
+      (BR 268917)
+    * Fixed collection menu items ordering. (BR 207007)
+    * Fixed top level podcast location setting. (BR 263736)
+    * Fixed double-clicking in collection using left-handed mouse setting.
+      (BR 272360)
+
+
 VERSION 2.4.1
+  BUGFIXES:
+    * Fixed crash on saving playlist on ineligible device. (BR 266899)
+    * Fixed Photos applet crash on track metadata change. (BR 265395)
+    * Fixed crash on local collection search. (BR 270949)
+    * Fixed crash during iPod track removal. (BR 253088)
+    * Relative paths support for XSPF playlists. (BR 264147)
+    * Fixed incorrect handling of "Various Artists" node by Collection Browser,
+      now selection of this node returns "Various Artists" tracks instead of
+      whole collection. (BR: 263255, BR: 269717)
+    * Fixed song scrobbling if It was paused. (BR 267477)
+    * Screen escape characters in MusicBrainz request string. (BR 269455)
+    * Fixed detection of iPod devices.
+    * Fixed crash when the lyrics applet was removed and re-added while a
+      track was playing and the user pressed "ESC".
+    * Fixed cached lyrics were not displayed if no lyrics script was running.
+    * Fixed lyrics changes in the TagDialog were not "synchronized" to the
+      lyrics applet.
+    * Fixed reporting of playback status for MPRIS (both versions).
+      (BR 268282)
+
+
+VERSION 2.4.1-Beta 1
   FEATURES:
     * Remote NFS & SMB/CIFS collections now work! (BR 249760, BR 232976, 
       BR 171213, BR 187692)
@@ -34,6 +102,11 @@ VERSION 2.4.1
       <bhargav.1191@gmail.com>. (BR 248690)
 
   BUGFIXES:
+    * Fixed translation issue in MagnatuneSignupDialog. 
+      Patch by Burkhard Lueck (lueck@hube-lueck.de) (BR: 239019)
+    * Fixed crash on loading unsupported format playlist. (BR: 265378)
+    * Ask delete confirmation for all contents of folder at once instead of each individually.
+      Affects "Saved Playlists" and "Podcasts" (BR 246117)
     * Fixed unreadable text in lyrics applet in kde 4.6. (BR 265311)
     * Fixed tag dialog crash when sorting by genre and then changing tags.
     * Fixed track's statistics update in case of StopAfterCurrent playback mode

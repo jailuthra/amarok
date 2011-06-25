@@ -114,7 +114,7 @@ void
 PhotosApplet::stopped()
 {
     DEBUG_BLOCK
-    setHeaderText( i18n( "Photos: No track playing" ) );
+    setHeaderText( i18n( "Photos: No Track Playing" ) );
     m_widget->clear();
     m_widget->hide();
     setBusy( false );
@@ -128,8 +128,11 @@ void
 PhotosApplet::photoAdded()
 {
     setBusy( false );
-    setHeaderText( i18nc( "@title:window Number of photos of artist", "%1 Photos: %2",
-                          m_widget->count(), m_currentArtist ) );
+    setHeaderText( i18ncp( "@title:window Number of photos of artist",
+                           "1 Photo: %2",
+                           "%1 Photos: %2",
+                           m_widget->count(),
+                           m_currentArtist ) );
 }
 
 void

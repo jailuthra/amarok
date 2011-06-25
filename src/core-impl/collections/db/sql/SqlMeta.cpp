@@ -493,7 +493,7 @@ SqlTrack::setType( Amarok::FileType newType )
     QWriteLocker locker( &m_lock );
 
     if ( m_filetype != newType )
-        commitMetaDataChanges( Meta::valFiletype, int(newType) );
+        commitMetaDataChanges( Meta::valFormat, int(newType) );
 }
 
 qreal
@@ -540,6 +540,7 @@ SqlTrack::setScore( double newScore )
 {
     QWriteLocker locker( &m_lock );
 
+    newScore = qBound( double(0), newScore, double(100) );
     if( qAbs( newScore - m_score ) > 0.001 ) // we don't commit for minimal changes
         commitMetaDataChanges( Meta::valScore, newScore );
 }
@@ -556,6 +557,7 @@ SqlTrack::setRating( int newRating )
 {
     QWriteLocker locker( &m_lock );
 
+    newRating = qBound( 0, newRating, 10 );
     if( newRating != m_rating )
         commitMetaDataChanges( Meta::valRating, newRating );
 }
@@ -795,7 +797,6 @@ SqlTrack::commitMetaDataChanges()
     // debug() << "SqlTrack::commitMetaDataChanges " << m_cache;
 
     QString oldUid = m_uid;
-    bool collectionChanged = false;
 
     // for all the following objects we need to invalidate the cache and
     // notify the observers after the update
@@ -810,8 +811,8 @@ SqlTrack::commitMetaDataChanges()
     KSharedPtr<SqlYear>     oldYear;
     KSharedPtr<SqlYear>     newYear;
 
-    if( m_cache.contains( Meta::valFiletype ) )
-        m_filetype = Amarok::FileType(m_cache.value( Meta::valFiletype ).toInt());
+    if( m_cache.contains( Meta::valFormat ) )
+        m_filetype = Amarok::FileType(m_cache.value( Meta::valFormat ).toInt());
     if( m_cache.contains( Meta::valTitle ) )
         m_title = m_cache.value( Meta::valTitle ).toString();
     if( m_cache.contains( Meta::valComment ) )
@@ -898,8 +899,6 @@ SqlTrack::commitMetaDataChanges()
 
             m_album->setSuppressImageAutoFetch( supp );
         }
-
-        collectionChanged = true;
     }
 
     if( m_cache.contains( Meta::valAlbum ) ||
@@ -940,10 +939,6 @@ SqlTrack::commitMetaDataChanges()
             oldAlbum.clear();
             newAlbum.clear();
         }
-        else
-        {
-            collectionChanged = true;
-        }
     }
 
     if( m_cache.contains( Meta::valComposer ) )
@@ -951,7 +946,6 @@ SqlTrack::commitMetaDataChanges()
         oldComposer = static_cast<SqlComposer*>(m_composer.data());
         m_composer = m_collection->registry()->getComposer( m_cache.value( Meta::valComposer ).toString() );
         newComposer = static_cast<SqlComposer*>(m_composer.data());
-        collectionChanged = true;
     }
 
     if( m_cache.contains( Meta::valGenre ) )
@@ -959,7 +953,6 @@ SqlTrack::commitMetaDataChanges()
         oldGenre = static_cast<SqlGenre*>(m_genre.data());
         m_genre = m_collection->registry()->getGenre( m_cache.value( Meta::valGenre ).toString() );
         newGenre = static_cast<SqlGenre*>(m_genre.data());
-        collectionChanged = true;
     }
 
     if( m_cache.contains( Meta::valYear ) )
@@ -967,7 +960,6 @@ SqlTrack::commitMetaDataChanges()
         oldYear = static_cast<SqlYear*>(m_year.data());
         m_year = m_collection->registry()->getYear( m_cache.value( Meta::valYear ).toInt() );
         newYear = static_cast<SqlYear*>(m_year.data());
-        collectionChanged = true;
     }
 
     if( m_cache.contains( Meta::valBpm ) )
