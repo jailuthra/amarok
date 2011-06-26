@@ -92,6 +92,22 @@ class AMAROK_EXPORT PlaylistManager : public QObject
         void addProvider( Playlists::PlaylistProvider * provider, int category );
 
         /**
+         * Do all the work necessary to sync playlists, including the
+         * SyncedPlaylist creation and more. This sync is persistent.
+         * @arg playlist of the master playlist
+         * @arg playlist of the slave playlist
+         */
+        void setupSync( const Playlists::PlaylistPtr master, const Playlists::PlaylistPtr slave );
+
+        /**
+         * Do all the work necessary to sync playlists, including the
+         * SyncedPlaylist creation and more. This sync disappear when Amarok is closed.
+         * @arg playlist of the master playlist
+         * @arg playlist of the slave playlist
+         */
+        void setupTemporarySync( const Playlists::PlaylistPtr master, const Playlists::PlaylistPtr slave );
+
+        /**
          * Remove a PlaylistProvider.
          * @arg provider a PlaylistProvider
          */
@@ -122,7 +138,7 @@ class AMAROK_EXPORT PlaylistManager : public QObject
         bool deletePlaylists( Playlists::PlaylistList playlistlist );
 
         Podcasts::PodcastProvider *defaultPodcasts() { return m_defaultPodcastProvider; }
-        Playlists::UserPlaylistProvider *defaultUserPlaylists() { return m_defaultUserPlaylistProvider; }
+        Playlists::UserPlaylistProvider *suidefaultUserPlaylists() { return m_defaultUserPlaylistProvider; }
 
         /**
          *  Retrieves the provider owning the given playlist.
@@ -164,6 +180,8 @@ class AMAROK_EXPORT PlaylistManager : public QObject
 
         void addPlaylist( Playlists::PlaylistPtr playlist, int category );
         void removePlaylist( Playlists::PlaylistPtr playlist, int category );
+
+        void doSyncDependentSlaves();
 
         static PlaylistManager *s_instance;
         PlaylistManager();

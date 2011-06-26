@@ -20,6 +20,8 @@
 
 #include <KConfigGroup>
 
+#include <QString>
+
 using namespace Playlists;
 
 KConfigSyncRelStore::KConfigSyncRelStore()
@@ -33,8 +35,10 @@ KConfigSyncRelStore::KConfigSyncRelStore()
         m_syncMasterMap.insert( masterUrl, SyncedPlaylistPtr() );
         foreach( QString value, syncedPlaylistsConfig().readEntry( key ).split( ',' ) )
         {
+
             m_syncSlaveMap.insert( KUrl( value ), masterUrl );
             debug() << "\tslave" << value;
+
         }
     }
 
@@ -45,36 +49,40 @@ KConfigSyncRelStore::~KConfigSyncRelStore()
 }
 
 bool
-KConfigSyncRelStore::shouldBeSynced( PlaylistPtr playlist )
+KConfigSyncRelStore::shouldBeSynced( const PlaylistPtr playlist ) const
 {
     DEBUG_BLOCK
     debug() << playlist->uidUrl().url();
+
     return m_syncMasterMap.keys().contains( playlist->uidUrl() )
            || m_syncSlaveMap.keys().contains( playlist->uidUrl() );
 }
 
 SyncedPlaylistPtr
-KConfigSyncRelStore::asSyncedPlaylist( PlaylistPtr playlist )
+KConfigSyncRelStore::asSyncedPlaylist( const PlaylistPtr playlist )
 {
     DEBUG_BLOCK
-    debug() << playlist->uidUrl().url();
+    debug() << QString("UIDurl: %1").arg( playlist->uidUrl().url() );
+
     SyncedPlaylistPtr syncedPlaylist;
     if( m_syncMasterMap.keys().contains( playlist->uidUrl() ) )
     {
         syncedPlaylist = m_syncMasterMap.value( playlist->uidUrl() );
-        if( !syncedPlaylist )
+        if( syncedPlaylist )
+            syncedPlaylist->addPlaylist( playlist );
+        else
         {
-            syncedPlaylist = SyncedPlaylistPtr( new SyncedPlaylist( playlist ) );;
+            syncedPlaylist = SyncedPlaylistPtr( new SyncedPlaylist( playlist ) );
             m_syncMasterMap.insert( playlist->uidUrl(), syncedPlaylist );
-            return syncedPlaylist;
         }
+
     }
     else if( m_syncSlaveMap.keys().contains( playlist->uidUrl() ) )
     {
-        syncedPlaylist = m_syncMasterMap.value( m_syncSlaveMap.value( playlist->uidUrl() ) );
-        if( syncedPlaylist )
+         syncedPlaylist = m_syncMasterMap.value( m_syncSlaveMap.value( playlist->uidUrl() ) );
+         if( syncedPlaylist )
             syncedPlaylist->addPlaylist( playlist );
-    }
+     }  
 
     return syncedPlaylist;
 }
@@ -82,4 +90,37 @@ KConfigSyncRelStore::asSyncedPlaylist( PlaylistPtr playlist )
 inline KConfigGroup
 KConfigSyncRelStore::syncedPlaylistsConfig() const {
     return Amarok::config( "Synchronized Playlists" );
+}
+
+void
+KConfigSyncRelStore::addSync( const PlaylistPtr master, const PlaylistPtr slave)
+{
+
+    KUrl masterUrl( master->uidUrl() );
+
+    if ( m_syncMasterMap.contains( masterUrl ) )
+        m_syncSlaveMap.insert( slave->uidUrl(), masterUrl );
+    else
+    {
+
+        m_syncMasterMap.insert( masterUrl, SyncedPlaylistPtr() );
+        m_syncSlaveMap.insert( slave->uidUrl(), masterUrl );
+
+    }
+
+    QList<QString> slaveUrlStringList;
+    foreach( const KUrl& slaveUrl, m_syncSlaveMap.keys() )
+    {
+        if( m_syncSlaveMap.value( slaveUrl ) == masterUrl )
+            slaveUrlStringList.append( ( m_syncSlaveMap.value( slaveUrl ) ).url() );
+
+    }
+
+    syncedPlaylistsConfig().writeEntry( masterUrl.url(), slaveUrlStringList );
+
+}
+
+QList<KUrl> KConfigSyncRelStore::slaves(const Playlists::PlaylistPtr master)
+{
+    return m_syncSlaveMap.keys( master->uidUrl() );
 }

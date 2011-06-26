@@ -48,6 +48,7 @@ class SyncedPlaylist : public Playlists::Playlist, public Playlists::PlaylistObs
 
         //SyncedPlaylist methods
         /** returns true when there is no active playlist associated with it anymore. */
+
         virtual bool isEmpty() const;
         virtual void addPlaylist( Playlists::PlaylistPtr playlist );
 
