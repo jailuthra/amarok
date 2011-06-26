@@ -28,6 +28,7 @@
 #include "file/KConfigSyncRelStore.h"
 #include "core-impl/podcasts/sql/SqlPodcastProvider.h"
 #include "playlistmanager/sql/SqlUserPlaylistProvider.h"
+#include "playlistmanager/SyncedPlaylist.h"
 #include "core/support/Debug.h"
 #include "core/support/Components.h"
 #include "core/interfaces/Logger.h"
@@ -74,6 +75,9 @@ PlaylistManager::PlaylistManager()
 
     m_syncRelStore = new KConfigSyncRelStore();
 
+    m_playlistFileProvider = new Playlists::PlaylistFileProvider();
+    addProvider( m_playlistFileProvider, UserPlaylist );
+
     m_defaultPodcastProvider = new Podcasts::SqlPodcastProvider();
     addProvider( m_defaultPodcastProvider, PlaylistManager::PodcastChannel );
     CollectionManager::instance()->addTrackProvider( m_defaultPodcastProvider );
@@ -81,8 +85,6 @@ PlaylistManager::PlaylistManager()
     m_defaultUserPlaylistProvider = new Playlists::SqlUserPlaylistProvider();
     addProvider( m_defaultUserPlaylistProvider, UserPlaylist );
 
-    m_playlistFileProvider = new Playlists::PlaylistFileProvider();
-    addProvider( m_playlistFileProvider, UserPlaylist );
 }
 
 PlaylistManager::~PlaylistManager()
@@ -143,24 +145,61 @@ PlaylistManager::addPlaylist( Playlists::PlaylistPtr playlist, int category )
 {
     if( shouldBeSynced( playlist ) )
     {
+
         SyncedPlaylistPtr syncedPlaylist = m_syncRelStore->asSyncedPlaylist( playlist );
         Playlists::PlaylistPtr syncedPlaylistPtr =
                 Playlists::PlaylistPtr::dynamicCast( syncedPlaylist );
-        m_syncedPlaylistMap.insert( syncedPlaylist, playlist );
-        if( !m_playlistMap.values( category ).contains(
-                Playlists::PlaylistPtr::dynamicCast( syncedPlaylistPtr ) ) )
+
+        m_playlistMap.insert( category, playlist );
+
+        //If syncedPlaylistPtr is NULL then the master of playlist is not created yet
+        if (syncedPlaylistPtr)
         {
-            m_playlistMap.insert( category, syncedPlaylistPtr );
-            //reemit so models know about new playlist in their category
-            emit playlistAdded( syncedPlaylistPtr, category );
+
+            if( !m_playlistMap.values( category ).contains(
+                        Playlists::PlaylistPtr::dynamicCast( syncedPlaylistPtr ) ) )
+            {
+                m_syncedPlaylistMap.insert( syncedPlaylist, playlist );
+                //reemit so models know about new playlist in their category
+                emit playlistAdded( syncedPlaylistPtr, category );
+            }
+
+            Playlists::PlaylistPtr master = *((syncedPlaylist->playlists()).begin());
+
+            if (playlist == master)
+            {
+                //If playlist is a master then we have to search first for any
+                //slaves created before it master
+                const QList<KUrl> slaves = m_syncRelStore->slaves( playlist );
+                QList<KUrl>::const_iterator i = slaves.begin();
+
+                for( ;i != slaves.end(); ++i)
+                {
+                    //Search for every slave created before this master in m_playlistMap
+                    //to set-up a sync between them
+                    foreach( Playlists::PlaylistPtr playlistTemp ,m_playlistMap.values() )
+                    {
+                        if (playlistTemp->uidUrl() == (*i).url())
+                            m_syncRelStore->asSyncedPlaylist( playlistTemp );
+                    }
+                }
+            }
+
+            if (syncedPlaylist->syncNeeded())
+                syncedPlaylist->doSync();
+
         }
+
     }
     else
     {
+
         m_playlistMap.insert( category, playlist );
         //reemit so models know about new playlist in their category
         emit playlistAdded( playlist, category );
+
     }
+
 }
 
 void
@@ -228,6 +267,9 @@ PlaylistManager::slotUpdated()
 void
 PlaylistManager::slotPlaylistAdded( Playlists::PlaylistPtr playlist )
 {
+    DEBUG_BLOCK
+
+    debug() << QString("ADD UIDurl: %1").arg(playlist->uidUrl().url());
     addPlaylist( playlist, playlist->provider()->category() );
 }
 
@@ -441,6 +483,30 @@ PlaylistManager::completePodcastDownloads()
 
         podcastProvider->completePodcastDownloads();
     }
+}
+
+void
+PlaylistManager::setupSync( const Playlists::PlaylistPtr master, const Playlists::PlaylistPtr slave )
+{
+
+    m_syncRelStore->addSync( master, slave );
+
+    addPlaylist( master, master->provider()->category() );
+
+}
+
+void
+PlaylistManager::setupTemporarySync( const Playlists::PlaylistPtr master, const Playlists::PlaylistPtr slave )
+{
+
+    SyncedPlaylistPtr syncedPlaylist = SyncedPlaylistPtr( new SyncedPlaylist( master ) );
+    syncedPlaylist->addPlaylist( slave );
+
+    m_syncedPlaylistMap.insert( syncedPlaylist, master );
+
+    if (syncedPlaylist->syncNeeded())
+        syncedPlaylist->doSync();
+
 }
 
 #include "PlaylistManager.moc"

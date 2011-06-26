@@ -1,5 +1,7 @@
 /****************************************************************************************
- * Copyright (c) 2010 Bart Cerneels <bart.cerneels@kde.org>                             *
+ * Copyright (c) 2011 Stefan Derkits <stefan@derkits.at>                                *
+ * Copyright (c) 2011 Christian Wagner <christian.wagner86@gmx.at>                      *
+ * Copyright (c) 2011 Felix Winter <ixos01@gmail.com>                                   *
  *                                                                                      *
  * This program is free software; you can redistribute it and/or modify it under        *
  * the terms of the GNU General Public License as published by the Free Software        *
@@ -13,31 +15,26 @@
  * You should have received a copy of the GNU General Public License along with         *
  * this program.  If not, see <http://www.gnu.org/licenses/>.                           *
  ****************************************************************************************/
-#ifndef KCONFIGSYNCRELSTORE_H
-#define KCONFIGSYNCRELSTORE_H
 
-#include <src/playlistmanager/SyncRelationStorage.h>
+#define DEBUG_PREFIX "GpodderPodcastMeta"
 
-class KConfigGroup;
+#include "GpodderPodcastMeta.h"
+#include "GpodderProvider.h"
 
-class KConfigSyncRelStore : public SyncRelationStorage
+using namespace Podcasts;
+
+
+Podcasts::GpodderPodcastChannel::GpodderPodcastChannel(GpodderProvider* provider)
+    : PodcastChannel(), m_provider(provider)
 {
-public:
-    KConfigSyncRelStore();
+}
 
-    ~KConfigSyncRelStore();
+Playlists::PlaylistProvider* Podcasts::GpodderPodcastChannel::provider() const
+{
+    return dynamic_cast<Playlists::PlaylistProvider *>( m_provider );
+}
 
-
-    virtual void addSync( const Playlists::PlaylistPtr master, const Playlists::PlaylistPtr slave );
-    virtual bool shouldBeSynced( const Playlists::PlaylistPtr playlist ) const;
-    virtual SyncedPlaylistPtr asSyncedPlaylist( const Playlists::PlaylistPtr playlist );
-
-    virtual QList<KUrl> slaves( const Playlists::PlaylistPtr master );
-private:
-    KConfigGroup syncedPlaylistsConfig() const;
-
-    QMap<KUrl,SyncedPlaylistPtr> m_syncMasterMap;
-    QMap<KUrl,KUrl> m_syncSlaveMap;
-};
-
-#endif // KCONFIGSYNCRELSTORE_H
+Podcasts::GpodderPodcastChannel::GpodderPodcastChannel(GpodderProvider* provider, PodcastChannelPtr channel)
+    : PodcastChannel(channel) , m_provider(provider)
+{
+}
