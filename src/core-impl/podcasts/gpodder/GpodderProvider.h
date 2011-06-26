@@ -22,10 +22,12 @@
 
 #include "core/podcasts/PodcastProvider.h"
 
-#include <KLocale>
 #include <mygpo-qt/ApiRequest.h>
 #include "core/podcasts/PodcastReader.h"
 #include "GpodderPodcastMeta.h"
+
+#include <KLocale>
+#include <KDialog>
 
 class QAction;
 
@@ -77,7 +79,7 @@ signals:
 private slots:
     void finished();
     void parseError();
-    void requestError(QNetworkReply::NetworkError error);
+    void requestError( QNetworkReply::NetworkError error );
     void slotReadResult( PodcastReader *podcastReader );
     void slotStatusBarSorryMessage( const QString &message );
     void slotStatusBarNewProgressOperation( KIO::TransferJob * job,
@@ -85,6 +87,12 @@ private slots:
                                                        Podcasts::PodcastReader* reader );
     void slotRemoveChannels();
     void timerUpdate();
+
+    void slotSyncPlaylistAdded( Playlists::PlaylistPtr playlist );
+    void slotSyncPlaylistRemoved( Playlists::PlaylistPtr playlist );
+
+    void slotSyncPlaylistAddedDialog();
+    void slotSyncPlaylistRemovedDialog();
     
 private:
     mygpo::ApiRequest m_apiRequest;
@@ -93,11 +101,16 @@ private:
     qulonglong m_timestamp;
     GpodderPodcastChannelList m_channels;
     mygpo::AddRemoveResultPtr m_result;
+
+    KDialog *m_askDiag;
+    Playlists::PlaylistPtr m_possibleSyncPlaylist;
     
-    void readChannel(GpodderPodcastChannelPtr channel);
-    PodcastChannelPtr toPodcastChannelPtr(mygpo::PodcastPtr podcast);
-    void addPodcastChannel(PodcastChannelPtr channel);
-    void removeChannel(const QUrl& url);
+    void readChannel( GpodderPodcastChannelPtr channel );
+    PodcastChannelPtr toPodcastChannelPtr( mygpo::PodcastPtr podcast );
+    void addPodcastChannel( PodcastChannelPtr channel );
+    void removeChannel( const QUrl& url );
+    PodcastChannelPtr initializeMaster( PodcastChannelPtr channel );
+    PodcastChannelPtr initializeSlave( PodcastChannelPtr channel );
 
     QAction *m_removeAction; //remove a subscription
     QList<QUrl> m_addList;

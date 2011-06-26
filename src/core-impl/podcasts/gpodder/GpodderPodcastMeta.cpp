@@ -24,7 +24,8 @@
 using namespace Podcasts;
 
 
-Podcasts::GpodderPodcastChannel::GpodderPodcastChannel(GpodderProvider* provider): PodcastChannel(), m_provider(provider)
+Podcasts::GpodderPodcastChannel::GpodderPodcastChannel(GpodderProvider* provider)
+    : PodcastChannel(), m_provider(provider)
 {
 }
 

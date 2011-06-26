@@ -286,7 +286,7 @@ SyncedPlaylist::doSync() const
         //This removes any tracks that are not in master.
         position = master->tracks().size();
 
-        for(int removeCount = slave->trackCount() - 1; removeCount >= 0; removeCount--)
+        for( int removeCount = slave->trackCount() - 1; removeCount >= 0; removeCount-- )
             slave->removeTrack( position );
 
         //debug: print list
