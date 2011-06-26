@@ -45,6 +45,7 @@ class SqlPodcastEpisode : public Podcasts::PodcastEpisode
         /** Copy from another PodcastEpisode
         */
         SqlPodcastEpisode( PodcastEpisodePtr episode );
+        SqlPodcastEpisode( PodcastChannelPtr channel, PodcastEpisodePtr episode );
 
         ~SqlPodcastEpisode();
 
@@ -123,7 +124,7 @@ class SqlPodcastChannel : public Podcasts::PodcastChannel
 
         //SqlPodcastChannel specific methods
         int dbId() const { return m_dbId; }
-        void addEpisode( SqlPodcastEpisodePtr episode ) { m_episodes << episode; }
+        //void addEpisode( SqlPodcastEpisodePtr episode ) { m_episodes << episode; }
 
         bool writeTags() const { return m_writeTags; }
         void setWriteTags( bool writeTags ) { m_writeTags = writeTags; }

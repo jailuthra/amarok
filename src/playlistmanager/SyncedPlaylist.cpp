@@ -22,6 +22,7 @@
 #include <KLocale>
 
 using namespace Meta;
+
 SyncedPlaylist::SyncedPlaylist( Playlists::PlaylistPtr playlist )
 {
     addPlaylist( playlist );
@@ -30,7 +31,7 @@ SyncedPlaylist::SyncedPlaylist( Playlists::PlaylistPtr playlist )
 KUrl
 SyncedPlaylist::uidUrl() const
 {
-    return KUrl( QString( "amarok-syncedplaylist://1") );
+    return KUrl( QString( "amarok-syncedplaylist://1" ) );
 }
 
 QString
@@ -155,13 +156,28 @@ SyncedPlaylist::isEmpty() const
 void
 SyncedPlaylist::addPlaylist( Playlists::PlaylistPtr playlist )
 {
+
     if( m_playlists.contains( playlist ) )
         return;
 
     //Only subscribe to the master playlist's changes
     if( m_playlists.isEmpty() )
         subscribeTo( playlist );
+    else
+    {
+
+        //Deny syncing between playlists in the same provider because
+        //there is no use case for it and it does make the code more complex
+        if ( (*(m_playlists.begin()))->provider() == playlist->provider() )
+        {
+            debug() << "BUG: You cannot synchronize playlists with the same provider!!!";
+            return;
+        }
+
+    }
+
     m_playlists << playlist;
+
 }
 
 bool
@@ -178,33 +194,38 @@ SyncedPlaylist::syncNeeded() const
     Playlists::PlaylistPtr master = *i;
     int masterTrackCount = master->trackCount();
     ++i; //From now on its only slaves on the iterator
-    debug() << "master playlist: " << master->name() << " " << master->uidUrl().url();
-    debug() << QString( "Master Count.... %1").arg(masterTrackCount);
+    debug() << QString( "Master Playlist: %1 - %2" ).arg( master->name() ).arg( master->uidUrl().url() );
+    debug() << QString( "Master Count.... %1" ).arg( masterTrackCount );
 
     for( ;i != m_playlists.end(); ++i)
     {
 
         //Playlists::PlaylistPtr slave = i.next();
         Playlists::PlaylistPtr slave = *i;
-         debug() << "Slave playlist: " << slave->name() << " " << slave->uidUrl().url();
+
+        debug() << QString( "Slave Playlist: %1 - %2" ).arg( slave->name() ).arg( slave->uidUrl().url() );
         if( masterTrackCount != -1 )
         {
             int slaveTrackCount = slave->trackCount();
-            debug() << QString( "Slave Count.... %1").arg(slaveTrackCount);
-            //if the number of tracks is different a sync is certainly required
+            debug() << QString( "Slave Count.... %1" ).arg( slaveTrackCount );
+            //If the number of tracks is different a sync is certainly required
             if( slaveTrackCount != -1 && slaveTrackCount != masterTrackCount )
                 return true;
         }
-        //compare track by track
-        debug() << QString( "Comparing track by track");
+
+        //Compare track by track
+        debug() << "Comparing track by track";
+
         TrackList masterTracks = master->tracks();
         TrackList slaveTracks = slave->tracks();
+
         for( int i = 0; i < masterTrackCount; i++ )
             if( masterTracks[i] != slaveTracks[i] )
                 return true;
     }
 
-    debug() << QString( "No sync needed");
+    debug() << "No sync needed";
+
     return false;
 }
 
@@ -224,7 +245,7 @@ SyncedPlaylist::doSync() const
         QListIterator<TrackPtr> m( master->tracks() );
         //debug: print list
         int position = 0;
-        debug() << "master playlist: " << master->name() << " " << master->uidUrl().url();
+        debug() << QString( "Master Playlist: %1 - %2" ).arg( master->name() ).arg( master->uidUrl().url() );
         while( m.hasNext() )
             debug() << QString( "%1 : %2" ).arg( position++ ).arg( m.next()->name() );
         m.toFront();
@@ -232,7 +253,7 @@ SyncedPlaylist::doSync() const
         TrackList slaveTracks = slave->tracks();
         //debug: print list
         position = 0;
-        debug() << "slave playlist: " << slave->name() << " " << slave->uidUrl().url();
+        debug() << QString( "Slave Playlist: %1 - %2" ).arg( slave->name() ).arg( slave->uidUrl().url() );
         foreach( const TrackPtr track, slaveTracks )
             debug() << QString( "%1 : %2" ).arg( position++ ).arg( track->name() );
 
@@ -244,7 +265,7 @@ SyncedPlaylist::doSync() const
             if( position >= slaveTracks.size()
                     || track->uidUrl() != slaveTracks.at( position )->uidUrl() )
             {
-                debug() << "insert " << track->name() << " at " << position;
+                debug() << QString( "insert %1 at %2" ).arg( track->name() ).arg( position );
                 slave->addTrack( track, position );
 
                 slave->syncTrackStatus( position, track );
@@ -264,7 +285,6 @@ SyncedPlaylist::doSync() const
         //Then remove everything after the position of the last track in master.
         //This removes any tracks that are not in master.
         position = master->tracks().size();
-        debug() << QString( "before remove" );
 
         for(int removeCount = slave->trackCount() - 1; removeCount >= 0; removeCount--)
             slave->removeTrack( position );

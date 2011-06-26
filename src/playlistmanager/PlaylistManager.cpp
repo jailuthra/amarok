@@ -145,14 +145,14 @@ PlaylistManager::addPlaylist( Playlists::PlaylistPtr playlist, int category )
 {
     if( shouldBeSynced( playlist ) )
     {
-        DEBUG_BLOCK
-        debug() << playlist->uidUrl();
+
         SyncedPlaylistPtr syncedPlaylist = m_syncRelStore->asSyncedPlaylist( playlist );
         Playlists::PlaylistPtr syncedPlaylistPtr =
                 Playlists::PlaylistPtr::dynamicCast( syncedPlaylist );
 
         m_playlistMap.insert( category, playlist );
 
+        //If syncedPlaylistPtr is NULL then the master of playlist is not created yet
         if (syncedPlaylistPtr)
         {
 
@@ -164,24 +164,24 @@ PlaylistManager::addPlaylist( Playlists::PlaylistPtr playlist, int category )
                 emit playlistAdded( syncedPlaylistPtr, category );
             }
 
-            //NOTE: Remenber to deny syncing between playlists in the same provider!!!
             Playlists::PlaylistPtr master = *((syncedPlaylist->playlists()).begin());
 
-            //Playlist == Master of Synchronisation?
             if (playlist == master)
             {
+                //If playlist is a master then we have to search first for any
+                //slaves created before it master
                 const QList<KUrl> slaves = m_syncRelStore->slaves( playlist );
                 QList<KUrl>::const_iterator i = slaves.begin();
 
                 for( ;i != slaves.end(); ++i)
                 {
+                    //Search for every slave created before this master in m_playlistMap
+                    //to set-up a sync between them
                     foreach( Playlists::PlaylistPtr playlistTemp ,m_playlistMap.values() )
                     {
-                        //Sync if one of master slaves is already loaded
                         if (playlistTemp->uidUrl() == (*i).url())
                             m_syncRelStore->asSyncedPlaylist( playlistTemp );
                     }
-
                 }
             }
 
@@ -189,13 +189,17 @@ PlaylistManager::addPlaylist( Playlists::PlaylistPtr playlist, int category )
                 syncedPlaylist->doSync();
 
         }
+
     }
     else
     {
+
         m_playlistMap.insert( category, playlist );
         //reemit so models know about new playlist in their category
         emit playlistAdded( playlist, category );
+
     }
+
 }
 
 void
@@ -488,6 +492,20 @@ PlaylistManager::setupSync( const Playlists::PlaylistPtr master, const Playlists
     m_syncRelStore->addSync( master, slave );
 
     addPlaylist( master, master->provider()->category() );
+
+}
+
+void
+PlaylistManager::setupTemporarySync( const Playlists::PlaylistPtr master, const Playlists::PlaylistPtr slave )
+{
+
+    SyncedPlaylistPtr syncedPlaylist = SyncedPlaylistPtr( new SyncedPlaylist( master ) );
+    syncedPlaylist->addPlaylist( slave );
+
+    m_syncedPlaylistMap.insert( syncedPlaylist, master );
+
+    if (syncedPlaylist->syncNeeded())
+        syncedPlaylist->doSync();
 
 }
 
